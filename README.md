@@ -1,6 +1,6 @@
 # cozyhome-decoupling
 
-This is going to the hub for my mini-packages that i'll be using for my games. Instead of coding every single thing in my games over and over again, I think it'd be best to develop templates to re-use for later projects. This project currently includes:
+This is going to be the hub for my mini-packages that i'll be using for my games. Instead of coding every single thing in my games over and over again, I think it'd be best to develop templates to re-use for later projects. This project currently includes:
 
 1. Actor Package - The ability to use three different primitives for sliding and flying around the scene. This project is akin to a character controller and is free for anybody else to use. It's currently not finished, but when it is I hope it will be incredibly useful. Unity's base CharacterController package isn't very flexible, and I am designing this to circumvent that.
 
