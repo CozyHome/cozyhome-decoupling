@@ -1,3 +1,4 @@
 using UnityEngine;
-namespace com.cozyhome.SystemsHeader { public partial class SystemsInjector : MonoBehaviour { } }
+using com.cozyhome.Singleton;
+namespace com.cozyhome.Systems { public partial class SystemsInjector : SingletonBehaviour<SystemsInjector> { } }
 

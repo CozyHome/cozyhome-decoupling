@@ -1,4 +1,4 @@
-namespace com.cozyhome.SystemsHeader
+namespace com.cozyhome.Systems
 {
     public class DebugSystem : UnityEngine.MonoBehaviour,
         SystemsHeader.IDiscoverSystem,
@@ -7,11 +7,11 @@ namespace com.cozyhome.SystemsHeader
         SystemsHeader.IUpdateSystem
     {
         [UnityEngine.SerializeField] short _executionindex = 0;
-        public void OnDiscover(in SystemsInjector _injector)
+        public void OnDiscover()
         {
-            _injector.RegisterUpdateSystem(_executionindex,this);
-            _injector.RegisterFixedSystem(_executionindex, this);
-            _injector.RegisterLateSystem(_executionindex, this);
+            SystemsInjector.RegisterUpdateSystem(_executionindex,this);
+            SystemsInjector.RegisterFixedSystem(_executionindex, this);
+            SystemsInjector.RegisterLateSystem(_executionindex, this);
         }
 
         public void OnFixedUpdate()
