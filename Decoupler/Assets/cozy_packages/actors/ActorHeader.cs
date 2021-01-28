@@ -7,324 +7,229 @@ namespace com.cozyhome.Actors
 {
     public static class ActorHeader
     {
+        public enum SlideSnapType
+        {
+            Never = 0,
+            Toggled = 1,
+            Always = 2
+        };
+
+        public enum MoveType
+        {
+            Fly = 0, // PM_FlyMove()
+            Slide = 1, // PM_SlideMove()
+            Noclip = 2 // PM_NoclipMove()
+        };
+
         public abstract class Actor : MonoBehaviour
         {
-            [SerializeField] private float MaximumStableAngle = 65F;
-            public Vector3 _position;
-            public Vector3 _velocity;
-            public Quaternion _orientation;
-            [SerializeField] private LayerMask _Filter;
+            [Header("Move Type Properties")]
+            [SerializeField] private MoveType _moveType = MoveType.Fly;
+            [SerializeField] private SlideSnapType _snapType = SlideSnapType.Always;
 
+            [Header("Ground Stability Properties")]
+            [SerializeField] private float MaximumStableSlideAngle = 65F;
 
-            [System.NonSerialized]
-            public readonly RaycastHit[] _internalhits
-                = new RaycastHit[ActorHeader.MAX_HITS];
+            [Header("Actor Filter Properties")]
+            [SerializeField] private LayerMask _filter;
 
-            [System.NonSerialized]
-            public readonly Collider[] _internalcolliders
-                = new Collider[ActorHeader.MAX_OVERLAPS];
+            [System.NonSerialized] private readonly RaycastHit[] _internalhits = new RaycastHit[ActorHeader.MAX_HITS];
 
-            [System.NonSerialized]
-            public readonly Vector3[] _internalnormals
-                = new Vector3[ActorHeader.MAX_PUSHBACKS];
+            [System.NonSerialized] private readonly Collider[] _internalcolliders = new Collider[ActorHeader.MAX_OVERLAPS];
+
+            [System.NonSerialized] private readonly Vector3[] _internalnormals = new Vector3[ActorHeader.MAX_OVERLAPS];
+
+            [System.NonSerialized] public Vector3 _position;
+            [System.NonSerialized] public Vector3 _velocity;
+            [System.NonSerialized] public Quaternion _orientation;
 
             public RaycastHit[] Hits => _internalhits;
             public Collider[] Colliders => _internalcolliders;
             public Vector3[] Normals => _internalnormals;
+
+            public MoveType MoveType => _moveType;
+
+            public SlideSnapType SnapType => _snapType;
+
+            public void Fly(float fdt) => PM_FlyMove(this, ref _position, ref _velocity, _orientation, _filter, fdt);
+
+            public void SetVelocity(Vector3 _velocity) => this._velocity = _velocity;
+            public void SetPosition(Vector3 _position) => this._position = _position;
+            public void SetOrientation(Quaternion _orientation) => this._orientation = _orientation;
+
             public abstract ArchetypeHeader.Archetype GetArchetype();
-
-            public virtual bool IsStableOnPlane(
-                Collider _collider,
-                Vector3 _point,
-                Vector3 _plane) => Vector3.Angle(
-                    _plane, Vector3.up) <= MaximumStableAngle;
-
-            public void Fly(float fdt)
-            =>
-                PM_FlyMove(ref _velocity, ref _position, fdt, _orientation, _Filter, this);
-
-            public void SetVelocity(Vector3 _velocity)
-            => this._velocity = _velocity;
-
-            public void SetPosition(Vector3 _position)
-            => this._position = _position;
-
-            public void SetOrientation(Quaternion _orientation)
-            => this._orientation = _orientation;
         }
 
         public static void PM_FlyMove(
-            ref Vector3 _vel,
+            Actor _actor,
             ref Vector3 _pos,
-            float _fdt,
+            ref Vector3 _vel,
             Quaternion _orient,
             LayerMask _filter,
-            Actor _actor)
+            float _fdt)
         {
             // STEPS:
-            // 1 : Declare local fields
-            // 2 : Initial discrete resolution and storage
-            // 3 : Clip initial discrete normals
-            // 4 : Begin traceback loop
-            // 1 : Trace archetype
-            // 2 : Move to time of arrival
-            // 3 : Clip velocity
-            // 4 : Determine creases/corners
-
-            if (_vel.sqrMagnitude < ActorHeader.MIN_DISPLACEMENT)
-                return;
+            // RUN :
+            // (OVERLAP -> PUSHBACK -> CONVEX HULL NORMAL (NEARBY PLANE DETECTION) -> GENERATE TOPOLOGY BITMASK -> TRACING -> REPEAT
 
             ArchetypeHeader.Archetype _arc = _actor.GetArchetype();
-            Collider _self = _arc.Collider();
 
             Collider[] _colliders = _actor.Colliders;
-            RaycastHit[] _hits = _actor.Hits;
-            Vector3[] _planes = _actor.Normals;
+            Collider _self = _arc.Collider();
 
-            Vector3 _lastclippedplane = new Vector3(0, 1F, 0);
+            Vector3[] _normals = _actor.Normals;
+            RaycastHit[] _traces = _actor.Hits;
 
             Vector3 _tracepos = _pos;
-            Vector3 _tracevel = _vel;
 
-            float _timeleft = 1F;
-
-            float _bias = ArchetypeHeader.GET_TRACEBIAS(_arc.PrimitiveType());
-            float _loss = ArchetypeHeader.GET_TRACELOSS(_arc.PrimitiveType());
+            float _tf = 1F; // time factor
             float _skin = ArchetypeHeader.GET_SKINEPSILON(_arc.PrimitiveType());
+            float _loss = ArchetypeHeader.GET_TRACELOSS(_arc.PrimitiveType());
 
-            int _tracephase = TRACE_DEFAULT;
+            int _bumpcount = 0;
+            int _pushbackcount = 0;
 
-            // discrete resolution
-            PM_FlyPushback(ref _tracepos,
-             out int _pushplanes,
-            _orient,
-            _filter,
-            _colliders,
-            _planes,
-            _self,
-            _skin,
-            _arc);
+            // Inflate our collider to successfully compute a penetration vector.
 
-            // clip velocity based on current discrete resolution normals
-            for (int j = _pushplanes - 1; j >= 0; j--)
+            Vector3 _l = Vector3.up;
+            int _tflags = 0;
+
+            // Attempt an Overlap Pushback at this current position:
+            while (_pushbackcount++ < ActorHeader.MAX_PUSHBACKS)
             {
-                Vector3 _plane = _planes[j];
-                if (VectorHeader.Dot(_tracevel, _planes[j]) <= 0F)
-                    PM_ResolveFlyVelocity(
-                        ref _tracephase,
-                        ref _tracevel,
-                        ref _lastclippedplane,
-                        _plane);
-            }
-
-            // trace clip
-            for (int i = MAX_BUMPS; i >= 0; i--)
-            {
-                if (_timeleft <= 0F || _tracevel.sqrMagnitude <= 0F)
-                    break;
-                else
-                {
-                    Vector3 _trace = _tracevel * _fdt;
-                    float _tracelen = _trace.magnitude;
-
-                    if(_tracelen <= 0F)
-                        break;
-
-                    // trace
-                    _arc.Trace(
-                        _tracepos,
-                        _trace / _tracelen,
-                        _tracelen + 2 * _skin,
-                        _orient,
-                        _filter,
-                        -_skin,
-                        QueryTriggerInteraction.Ignore,
-                        _hits,
-                        out int _tracesfound);
-
-                    // filter then check
-                    ArchetypeHeader.TraceFilters.FindClosestFilterInvalids(
-                        ref _tracesfound,
-                        out int _i0,
-                        _bias,
-                        _self,
-                        _hits);
-
-                    if (_i0 >= 0)
-                    {
-                        RaycastHit _closest = _hits[_i0];
-                        Vector3 _plane = _closest.normal;
-
-                        float _rto = (_closest.distance) / _tracelen;
-
-                        _timeleft -= (_rto);
-
-                        // trace to time of impact                        
-                        _tracepos +=
-                                (_trace) * (_rto - _loss);
-                        //_tracepos +=
-                            //(_plane * _loss);
-                        
-                        // clip velocity
-                        PM_ResolveFlyVelocity(
-                            ref _tracephase,
-                            ref _tracevel,
-                            ref _lastclippedplane,
-                            _closest.normal);
-
-                    }
-                    else
-                    {
-                        _tracepos += _trace;
-                        _timeleft = 0F;
-                    }
-                }
-            }
-
-            // Reject traceback position if
-            // overlap exists at final position, as well as safety being enabled.
-
-            // REFACTOR MAYBE RESEARCH MORE INTO:::
-
-            /*
-
-            // final end fast overlap check:
-            _arc.Overlap(_tracepos,
-            _orient,
-            _filter,
-            -_skin,
-            QueryTriggerInteraction.Ignore,
-            _colliders,
-            out int _safetycount);
-
-            ArchetypeHeader.OverlapFilters.FilterSelf(ref _safetycount, _self, _colliders);
-
-            // Set velocity and position to end movement resolution
-            //if(_safetycount == 0)
-            
-            */
-
-            _pos = _tracepos;
-            _vel = _tracevel;
-
-            return;
-        }
-
-        private static void PM_ResolveFlyVelocity(
-            ref int _tracephase,
-            ref Vector3 _clipvelocity,
-            ref Vector3 _lastclippedplane,
-            Vector3 _clippedplane)
-        {
-            // clip into, remove any velocity traveling into plane
-
-            // switch:
-            switch (_tracephase)
-            {
-                case ActorHeader.TRACE_DEFAULT:
-                    VectorHeader.ClipVector(ref _clipvelocity, _clippedplane);
-                    _tracephase = ActorHeader.TRACE_PLANE;
-                    break;
-                case ActorHeader.TRACE_PLANE:
-
-                    Vector3 _prevflatplane = _lastclippedplane;
-                    VectorHeader.ClipVector(ref _prevflatplane, Vector3.up);
-                    _prevflatplane.Normalize();
-
-                    Vector3 _flatplane = _clippedplane;
-                    VectorHeader.ClipVector(ref _flatplane, Vector3.up);
-                    _flatplane.Normalize();
-                    
-                    const float CREASE_EPSILON = -0.01F;
-                    float CREASEDOT = VectorHeader.Dot(_prevflatplane, _flatplane);
-
-                    if (CREASEDOT >= CREASE_EPSILON)
-                    {
-                        Vector3 _crease = Vector3.Cross(
-                            _clippedplane,
-                            _lastclippedplane);
-                        _crease.Normalize();
-
-                        VectorHeader.ProjectVector(ref _clipvelocity, _clippedplane);
-                        _tracephase = ActorHeader.TRACE_CREASE;
-                    }
-                    else
-                        VectorHeader.ClipVector(ref _clipvelocity, _clippedplane);
-                        
-                    break;
-                case ActorHeader.TRACE_CREASE:
-                    _clipvelocity = Vector3.zero;
-                    break;
-            }
-
-            _lastclippedplane = _clippedplane;
-        }
-        private static void PM_FlyPushback(
-            ref Vector3 _position,
-            out int _pushplanesfound,
-            Quaternion _orientation,
-            LayerMask _filter,
-            Collider[] _colliders,
-            Vector3[] _planes,
-            Collider _self,
-            float _inflate,
-            ArchetypeHeader.Archetype _archetype)
-        {
-            _pushplanesfound = 0;
-            bool _overlapsolved = false;
-
-            for (int i = ActorHeader.MAX_PUSHBACKS; i >= 0; i--)
-            {
-                if (_overlapsolved)
-                    break;
-                else
-                {
-                    _archetype.Overlap(_position, 
-                    _orientation, 
-                    _filter, 
+                _arc.Overlap(
+                    _tracepos,
+                    _orient,
+                    _filter,
                     0F,
-                    QueryTriggerInteraction.Ignore, 
-                    _colliders, 
+                    QueryTriggerInteraction.Ignore,
+                    _colliders,
                     out int _overlapsfound);
 
-                    ArchetypeHeader.OverlapFilters.FilterSelf(
-                        ref _overlapsfound,
-                        _self,
-                        _colliders);
+                ArchetypeHeader.OverlapFilters.FilterSelf(
+                    ref _overlapsfound,
+                    _self,
+                    _colliders);
 
-                    // FILTER COLLIDERS :::
-
-                    if (_overlapsfound != 0)
+                if (_overlapsfound == 0) // nothing !
+                    break;
+                else
+                {
+                    // Actually resolve our position whilst also keeping note of normals discovered:
+                    for (int _colliderindex = 0; _colliderindex < _overlapsfound; _colliderindex++)
                     {
-                        for (int j = 0; j < _overlapsfound; j++)
+                        Collider _other = _colliders[_colliderindex];
+                        Transform _otherT = _other.GetComponent<Transform>();
+
+                        if (Physics.ComputePenetration(_self, _tracepos, _orient, _other, _otherT.position, _otherT.rotation, out Vector3 _normal, out float _distance))
                         {
-                            Collider _overlappedcollider = _colliders[j];
-                            Transform _overlappedtransform = _overlappedcollider.GetComponent<Transform>();
+                            // im assuming Unity computes the GJK with a penetration vector. Nevertheless, we're only resolving pushback here, I personally don't really trust the
+                            // normals detected here, my inflated overlap works but at the expense of allowing our trace to detect any rigidbodies... So i've removed that in favor
+                            // of interaction with the physics system
+                            _tracepos += _normal * (_distance + _skin);
 
-                            if (Physics.ComputePenetration(
-                                _self,
-                                _position,
-                                _orientation,
-                                _overlappedcollider,
-                                _overlappedtransform.position,
-                                _overlappedtransform.rotation,
-                                out Vector3 _resolution,
-                                out float _distance))
-                            {
-                                _position += _resolution * (_distance + _inflate);
-
-                                if (_pushplanesfound < MAX_OVERLAPS)
-                                    _planes[_pushplanesfound++] = _resolution;
-                            }
+                            if (VectorHeader.Dot(_vel, _normal) < 0F) // In this overlap, we  want the immediate normals
+                                PM_DetermineNearbyTopology(ref _vel, ref _l, _normal, ref _tflags);
+                            break;
                         }
-                    }
-                    else
-                    {
-                        _overlapsolved=true;
-                        break;
                     }
                 }
             }
+
+            while (_bumpcount++ <= ActorHeader.MAX_BUMPS
+                  && _tf > 0)
+            {
+                // Begin Trace
+                Vector3 _trace = _vel * _fdt;
+                float _tracelen = _trace.magnitude;
+
+                // IF unable to trace any further, break and end
+                if (_tracelen <= MIN_DISPLACEMENT)
+                {
+                    _tf = 0;
+                    break;
+                }
+                else
+                {
+                    _arc.Trace(
+                    _tracepos,
+                    _trace / _tracelen,
+                    _tracelen + _skin,
+                    _orient,
+                    _filter,
+                    0F,
+                    QueryTriggerInteraction.Ignore,
+                    _traces,
+                    out int _tracecount);
+
+                    ArchetypeHeader.TraceFilters.FindClosestFilterInvalids(
+                        ref _tracecount,
+                        out int _i0,
+                        ArchetypeHeader.GET_TRACEBIAS(_arc.PrimitiveType()),
+                        _self,
+                        _traces);
+
+                    if (_i0 <= -1) // nothing discovered:::
+                    {
+                        _tf = 0; // end move
+                        _tracepos += _trace;
+                        break;
+                    }
+                    else // discovered an obstruction:::
+                    {
+                        RaycastHit _closest = _traces[_i0];
+                        float _rto = _closest.distance / _tracelen;
+                        _tf -= _rto;
+
+                        float _dis = Mathf.Max(_closest.distance - _skin, 0F);
+                        _tracepos += (_trace / _tracelen) * _dis; // move back along the trace line!
+
+                        PM_DetermineNearbyTopology(ref _vel, ref _l, _closest.normal, ref _tflags);
+
+                        continue;
+                    }
+                }
+            }
+
+            _pos = _tracepos;
+        }
+
+        private static void PM_DetermineNearbyTopology(ref Vector3 _v, ref Vector3 _l, Vector3 _n, ref int _tflags)
+        {
+            switch (_tflags)
+            {
+                case 0:
+                    PM_FlyClipVelocity(ref _v, _n);
+                    _tflags |= (1 << 0);
+                    break;
+                case (1 << 0):
+                    if (Mathf.Abs(VectorHeader.Dot(_l, _n)) >= FLY_CREASE_EPSILON)
+                    {
+                        Vector3 _c = Vector3.Cross(_l, _n);
+                        _c.Normalize();
+                        VectorHeader.ProjectVector(ref _v, _c);
+                        _tflags |= (1 << 1);
+                    }
+                    else
+                        PM_FlyClipVelocity(ref _v, _n);
+                    break;
+                case (1 << 0) | (1 << 1):
+                    _v = Vector3.zero;
+                    _tflags |= (1 << 2);
+                    break;
+            }
+
+            _l = _n;
+        }
+
+        public static void PM_FlyClipVelocity(ref Vector3 _velocity, Vector3 _plane)
+        {
+            float _m = _velocity.magnitude;
+            if (_m <= MIN_DISPLACEMENT)
+                return;
+            else
+                if (VectorHeader.Dot(_velocity / _m, _plane) < ActorHeader.FLY_CLIP_EPSILON) // only clip if we're piercing into the infinite plane 
+                    VectorHeader.ClipVector(ref _velocity, _plane);
         }
 
         public interface IActor
@@ -333,21 +238,19 @@ namespace com.cozyhome.Actors
             void OnActorBump(
                 Vector3 _pos, // character's position
                 Vector3 _velocity, // character's unclipped velocity
-                in RaycastHit _hit // physics's hit structure
+                RaycastHit _hit // physics's hit structure
             );
         }
 
-        public static readonly int MAX_PUSHBACKS = 8; // # of iterations in our Pushback() funcs
-        public static readonly int MAX_BUMPS = 8; // # of iterations in our Move() funcs
-        public static readonly int MAX_HITS = 8; // # of RaycastHit[] structs allocated to
-                                                 // a hit buffer.
-        public static readonly int MAX_OVERLAPS = 8; // # of Collider classes allocated to a
-                                                     // overlap buffer.
-        public static readonly float MIN_DISPLACEMENT = 0.001F;
-        // min squared length of a displacement vector required for a Move() to proceed.
-
-        public const int TRACE_DEFAULT = 0;
-        public const int TRACE_PLANE = (1 << 0);
-        public const int TRACE_CREASE = (1 << 1);
+        public const int MAX_GROUNDBUMPS = 2; // # of ground snaps/iterations in a SlideMove() 
+        public const int MAX_PUSHBACKS = 3; // # of iterations in our Pushback() funcs
+        public const int MAX_BUMPS = 8; // # of iterations in our Move() funcs
+        public const int MAX_HITS = 8; // # of RaycastHit[] structs allocated to
+                                       // a hit buffer.
+        public const int MAX_OVERLAPS = 8; // # of Collider classes allocated to a
+                                           // overlap buffer.
+        public const float MIN_DISPLACEMENT = 0.001F; // min squared length of a displacement vector required for a Move() to proceed.
+        public const float FLY_CLIP_EPSILON = 0F; // minimum correlation respondance between the velocity vector and normal plane to allow for a clip during a FlyMove()
+        public const float FLY_CREASE_EPSILON = 0.0001F; // minimum distance angle during a crease check to disregard any normals being queried.
     }
 }

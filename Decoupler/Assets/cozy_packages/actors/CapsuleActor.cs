@@ -3,7 +3,8 @@ using UnityEngine;
 
 namespace com.cozyhome.Actors
 {
-    [RequireComponent(typeof(CapsuleCollider))] public class CapsuleActor : ActorHeader.Actor, ActorHeader.IActor
+    [RequireComponent(typeof(CapsuleCollider))]
+    public class CapsuleActor : ActorHeader.Actor, ActorHeader.IActor
     {
         [System.NonSerialized] private ArchetypeHeader.CapsuleArchetype CapsuleArchetype;
         /* UnityEngine */
@@ -17,8 +18,8 @@ namespace com.cozyhome.Actors
                 GetComponent<CapsuleCollider>()
             );
         }
-        
-        public void OnActorBump(Vector3 _pos, Vector3 _velocity, in RaycastHit _hit) { }
+
+        public void OnActorBump(Vector3 _pos, Vector3 _velocity, RaycastHit _hit) { }
         public void OnActorOverlap(Vector3 _normal, Collider _collider) { }
 
         public override ArchetypeHeader.Archetype GetArchetype()

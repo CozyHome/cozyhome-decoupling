@@ -26,7 +26,7 @@ public class SimpleFPSMover : MonoBehaviour
             );
 
             Quaternion R = LookRotate(
-                _View.rotation, 
+                _View.rotation,
                 _mouse,
                 _MaxVerticalAngle
             );
@@ -41,20 +41,22 @@ public class SimpleFPSMover : MonoBehaviour
             Vector3 _wishvel = _View.rotation * new Vector3(_input[0], 0, _input[1]);
             _wishvel = Vector3.ClampMagnitude(_wishvel, 1.0F);
 
+            /*
             com.cozyhome.Vectors.VectorHeader.ClipVector(
                 ref _wishvel,
                 Vector3.up
             );
             _wishvel.Normalize();
+            */
 
             _Actor.SetVelocity(_wishvel * _MaxSpeed);
-            _Actor.Fly(Time.fixedDeltaTime);
+            _Actor.Fly(GlobalTime.FDT);
 
             transform.position = _Actor._position;
         }
     }
 
-    private Quaternion LookRotate(Quaternion _previous, Vector2 _mouse, float _maxvertical)
+    private Quaternion LookRotate(Quaternion _previous, Vector2 _delta, float _maxvertical)
     {
         Quaternion R = _previous;
 
@@ -64,34 +66,34 @@ public class SimpleFPSMover : MonoBehaviour
             new Vector3(0, 1, 0)
         );
 
-        _mouse[0] *= (360F * Time.fixedDeltaTime);
-        _mouse[1] *= (360F * Time.fixedDeltaTime);
+        _delta[0] *= (360F * GlobalTime.FDT);
+        _delta[1] *= (360F * GlobalTime.FDT);
 
         Vector3 fwd = R * new Vector3(0, 0, 1);
 
-        float _deltax = -_mouse[1];
+        float _nextx = -_delta[1];
 
         // if (cur angle + delta angle) > clamp angle
         // subtract difference from delta and apply
-        if(_px - _deltax > _maxvertical)
-            _deltax = -(_maxvertical - _px);
-        
-        // do the same for the polar axis
-        else if(_px - _deltax < -_maxvertical)
-            _deltax = -(-_maxvertical - _px);
+        if (_px - _nextx > _maxvertical)
+            _nextx = -(_maxvertical - _px);
+
+        // do the same for the opposite axis
+        else if (_px - _nextx < -_maxvertical)
+            _nextx = -(-_maxvertical - _px);
 
         fwd = Quaternion.AngleAxis(
-                _deltax,
+                _nextx,
                 R * new Vector3(1, 0, 0)
             ) * fwd;
 
         fwd = Quaternion.AngleAxis(
-            _mouse[0],
+            _delta[0],
             new Vector3(0, 1, 0)
         ) * fwd;
 
         R = Quaternion.LookRotation(fwd);
-        
+
         return R;
     }
 }

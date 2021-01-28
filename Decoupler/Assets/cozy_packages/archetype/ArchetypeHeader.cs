@@ -74,30 +74,31 @@ namespace com.cozyhome.Archetype
         public static readonly int ARCHETYPE_CAPSULE = 1;
         public static readonly int ARCHETYPE_BOX = 2;
 
-        private static readonly float[] SKINEPSILON = new float[]
+        private static readonly float[] SKINEPSILON = new float[3]
         {
-            0.0001F, // sphere
-            0.0001F, // capsule
-            0.0001F // box
+            0.01F, // sphere
+            0.01F, // capsule
+            0.01F // box
         };
 
-        private static readonly float[] TRACEBIAS = new float[]
-        {
-            0.0005F, // sphere
-            0.0005F, // capsule
-            0.0005F // box
-        };
-
-        private static readonly float[] TRACELOSS = new float[]
+        private static readonly float[] TRACEBIAS = new float[3]
         {
             0.02F, // sphere
             0.02F, // capsule
             0.02F // box
         };
 
+        private static readonly float[] TRACELOSS = new float[3]
+        {
+            0.01F, // sphere
+            0.01F, // capsule
+            0.01F // box
+        };
+
         public static float GET_SKINEPSILON(int _i0) => SKINEPSILON[_i0];
-        public static float GET_TRACELOSS(int _i0) => TRACELOSS[_i0];
         public static float GET_TRACEBIAS(int _i0) => TRACEBIAS[_i0];
+
+        public static float GET_TRACELOSS(int _i0) => TRACELOSS[_i0];
 
         [System.Serializable]
         public abstract class Archetype : Object
@@ -124,6 +125,9 @@ namespace com.cozyhome.Archetype
 
             public abstract Collider Collider();
             public abstract int PrimitiveType();
+
+            public abstract void Inflate(float _amt);
+            public abstract void Deflate(float _amt);
         }
 
         [System.Serializable]
@@ -170,6 +174,16 @@ namespace com.cozyhome.Archetype
 
             public override int PrimitiveType()
             => ARCHETYPE_SPHERE;
+
+            public override void Inflate(float _amt)
+            {
+                _collider.radius += _amt;
+            }
+
+            public override void Deflate(float _amt)
+            {
+                _collider.radius -= _amt;
+            }
         }
 
         [System.Serializable]
@@ -179,7 +193,6 @@ namespace com.cozyhome.Archetype
 
             public CapsuleArchetype(CapsuleCollider _collider)
             => this._collider = _collider;
-
 
             public override void Overlap(Vector3 _pos, Quaternion _orient, LayerMask _filter, float _inflate, QueryTriggerInteraction _interacttype, Collider[] _colliders, out int _overlapcount)
             {
@@ -219,6 +232,18 @@ namespace com.cozyhome.Archetype
             => _collider;
             public override int PrimitiveType()
             => ARCHETYPE_CAPSULE;
+
+            public override void Inflate(float _amt)
+            {
+                _collider.height += _amt;
+                _collider.radius += _amt / 2F;
+            }
+
+            public override void Deflate(float _amt)
+            {
+                _collider.height -= _amt;
+                _collider.radius -= _amt / 2F;
+            }
         }
 
         [System.Serializable]
@@ -247,7 +272,7 @@ namespace com.cozyhome.Archetype
             {
                 _tracecount = 0;
                 _pos += _orient * _collider.center;
-                _pos -= _direction * TRACEBIAS[ARCHETYPE_CAPSULE];
+                _pos -= _direction * TRACEBIAS[ARCHETYPE_BOX];
 
                 Vector3 _he = _collider.size * .5F;
                 for (int i = 0; i < 3; i++)
@@ -269,6 +294,24 @@ namespace com.cozyhome.Archetype
 
             public override int PrimitiveType()
             => ARCHETYPE_BOX;
+
+            public override void Inflate(float _amt)
+            {
+                Vector3 _sz = _collider.size;
+                for (int i = 0; i < 3; i++)
+                    _sz[i] += _amt;
+
+                _collider.size = _sz;
+            }
+
+            public override void Deflate(float _amt)
+            {
+                Vector3 _sz = _collider.size;
+                for (int i = 0; i < 3; i++)
+                    _sz[i] -= _amt;
+
+                _collider.size = _sz;
+            }
         }
     }
 }
