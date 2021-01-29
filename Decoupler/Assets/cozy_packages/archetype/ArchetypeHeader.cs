@@ -128,6 +128,7 @@ namespace com.cozyhome.Archetype
 
             public abstract void Inflate(float _amt);
             public abstract void Deflate(float _amt);
+            public virtual bool DetermineGroundStability(in RaycastHit _hit) => true;
         }
 
         [System.Serializable]
