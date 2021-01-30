@@ -50,7 +50,7 @@ public class SimpleFPSMover : MonoBehaviour
             */
 
             _Actor.SetVelocity(_wishvel * _MaxSpeed);
-            _Actor.Fly(GlobalTime.FDT);
+            _Actor.Slide(GlobalTime.FDT);
 
             transform.position = _Actor._position;
         }

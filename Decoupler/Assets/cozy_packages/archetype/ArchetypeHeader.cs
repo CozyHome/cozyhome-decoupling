@@ -76,16 +76,16 @@ namespace com.cozyhome.Archetype
 
         private static readonly float[] SKINEPSILON = new float[3]
         {
-            0.01F, // sphere
-            0.01F, // capsule
-            0.01F // box
+            0.001F, // sphere
+            0.001F, // capsule
+            0.001F // box
         };
 
         private static readonly float[] TRACEBIAS = new float[3]
         {
-            0.02F, // sphere
-            0.02F, // capsule
-            0.02F // box
+            0.002F, // sphere
+            0.002F, // capsule
+            0.002F // box
         };
 
         private static readonly float[] TRACELOSS = new float[3]
@@ -128,7 +128,7 @@ namespace com.cozyhome.Archetype
 
             public abstract void Inflate(float _amt);
             public abstract void Deflate(float _amt);
-            public virtual bool DetermineGroundStability(in RaycastHit _hit) => true;
+            
         }
 
         [System.Serializable]

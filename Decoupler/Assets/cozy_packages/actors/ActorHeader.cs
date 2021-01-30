@@ -10,13 +10,23 @@ namespace com.cozyhome.Actors
         public enum SlideSnapType { Never = 0, Toggled = 1, Always = 2 };
         public enum MoveType { Fly = 0, /* PM_FlyMove() */ Slide = 1, /* PM_SlideMove() */  Noclip = 2 /* PM_NoclipMove() */  };
 
-        public struct GroundHit 
+        public class GroundHit
         {
+            public Vector3 actorpoint; // our actor's position at the time of our hit
             public Vector3 point; // our trace point
             public Vector3 normal; // our trace normal
             public float distance; // our trace distance
+            public bool stable; // is our trace stable?
+            public bool snapped; // is our trace snapping?
 
-            
+            public void Clear()
+            {
+                actorpoint = Vector3.zero;
+                point = Vector3.zero;
+                normal = Vector3.zero;
+                stable = false;
+                snapped = false;
+            }
         }
 
         public abstract class Actor : MonoBehaviour
@@ -24,12 +34,16 @@ namespace com.cozyhome.Actors
             [Header("Move Type Properties")]
             [SerializeField] private MoveType _moveType = MoveType.Fly;
             [SerializeField] private SlideSnapType _snapType = SlideSnapType.Always;
+            [SerializeField] private bool _snapenabled = true;
 
             [Header("Ground Stability Properties")]
             [SerializeField] private float MaximumStableSlideAngle = 65F;
 
             [Header("Actor Filter Properties")]
             [SerializeField] private LayerMask _filter;
+
+            [System.NonSerialized] private readonly GroundHit _groundhit = new GroundHit();
+            [System.NonSerialized] private readonly GroundHit _lastgroundhit = new GroundHit();
 
             [System.NonSerialized] private readonly RaycastHit[] _internalhits = new RaycastHit[ActorHeader.MAX_HITS];
 
@@ -44,18 +58,24 @@ namespace com.cozyhome.Actors
             public RaycastHit[] Hits => _internalhits;
             public Collider[] Colliders => _internalcolliders;
             public Vector3[] Normals => _internalnormals;
+            public bool SnapEnabled => _snapenabled;
 
             public MoveType MoveType => _moveType;
 
             public SlideSnapType SnapType => _snapType;
+            public GroundHit Ground => _groundhit;
+            public GroundHit LastGround => _lastgroundhit;
 
             public void Fly(float fdt) => PM_FlyMove(this, ref _position, ref _velocity, _orientation, _filter, fdt);
+            public void Slide(float fdt) => PM_SlideMove(this, ref _position, ref _velocity, _orientation, _filter, fdt);
 
             public void SetVelocity(Vector3 _velocity) => this._velocity = _velocity;
             public void SetPosition(Vector3 _position) => this._position = _position;
             public void SetOrientation(Quaternion _orientation) => this._orientation = _orientation;
 
             public abstract ArchetypeHeader.Archetype GetArchetype();
+            public virtual bool DetermineGroundStability(in RaycastHit _hit) => Vector3.Angle(_hit.normal, _orientation * Vector3.up) <= MaximumStableSlideAngle;
+            public virtual bool DeterminePlaneStability(Vector3 _normal, Collider _other) => Vector3.Angle(_normal, _orientation * Vector3.up) <= MaximumStableSlideAngle;
         }
 
         public static void PM_SlideMove(
@@ -64,8 +84,7 @@ namespace com.cozyhome.Actors
             ref Vector3 _vel,
             Quaternion _orient,
             LayerMask _filter,
-            float _fdt
-        )
+            float _fdt)
         {
             SlideSnapType _snaptype = _actor.SnapType;
 
@@ -86,16 +105,21 @@ namespace com.cozyhome.Actors
 
             Vector3 _lastplane = Vector3.zero;
             Vector3 _groundtracedir = _orient * new Vector3(0, -1, 0);
+            Vector3 _up = _orient * new Vector3(0, 1, 0);
 
             float _tf = 1F;
             float _skin = ArchetypeHeader.GET_SKINEPSILON(_arc.PrimitiveType());
+            float _bias = ArchetypeHeader.GET_TRACEBIAS(_arc.PrimitiveType());
 
             int _bumpcount = 0;
             int _groundbumpcount = 0;
             int _pushbackcount = 0;
             int _gflags = 0;
 
-            float _groundtracelen = .5F;
+            float _groundtracelen = .25F;
+
+            GroundHit _ground = _actor.Ground;
+            _ground.Clear();
 
             while (_groundbumpcount++ < MAX_GROUNDBUMPS &&
             _groundtracelen > 0F)
@@ -112,7 +136,7 @@ namespace com.cozyhome.Actors
                 _arc.Trace(
                     _groundtracepos,
                     _groundtracedir,
-                    _groundtracelen + _skin,
+                    _groundtracelen,
                     _orient,
                     _filter,
                     0F,
@@ -123,7 +147,7 @@ namespace com.cozyhome.Actors
                 ArchetypeHeader.TraceFilters.FindClosestFilterInvalids(
                     ref _groundtraces,
                     out int _i0,
-                    ArchetypeHeader.GET_TRACEBIAS(_arc.PrimitiveType()),
+                    _bias,
                     _self,
                     _traces);
 
@@ -131,14 +155,57 @@ namespace com.cozyhome.Actors
                 {
                     RaycastHit _closest = _traces[_i0];
 
+                    _ground.distance = _closest.distance;
+                    _ground.normal = _closest.normal;
+                    _ground.actorpoint = _groundtracepos;
+                    _ground.stable = _actor.DetermineGroundStability(in _closest);
+
                     _groundtracepos += _groundtracedir * _closest.distance;
                     // warp regardless of stablility. We'll only be setting our trace position
                     // to our ground trace position if a stable floor has been determined, and snapping is enabled. 
 
-                    if ( _arc.DetermineGroundStability(in _closest) )
+                    if (_ground.stable)
                     {
-                        _groundtracepos += (_orient * new Vector3(0, 1, 0)) * _skin;
-                        _tracepos = _groundtracepos;
+                        bool _cansnap = _snaptype == SlideSnapType.Always;
+
+                        switch (_snaptype)
+                        {
+                            case SlideSnapType.Never:
+                                _cansnap = false;
+                                break;
+                            case SlideSnapType.Toggled:
+                                _cansnap = _actor.SnapEnabled;
+                                break;
+                        }
+
+                        if (_cansnap)
+                        {
+                            _groundtracepos += (_up) * (_skin);
+                            _tracepos = _groundtracepos;
+                            _ground.snapped = true;
+
+                            _lastplane = _ground.normal;
+                            _gflags |= (1 << 0);
+
+                            float _m = _vel.magnitude;
+
+                            Vector3 R = Vector3.Cross(
+                                _vel,
+                                _up
+                            );
+                            R.Normalize();
+
+                            Vector3 F = Vector3.Cross(
+                                _ground.normal,
+                                R
+                            );
+
+                            F.Normalize();
+                            _vel = F;
+                            _vel *= _m;
+                        }
+
+                        _groundtracelen = 0F;
                     }
                     else
                     {
@@ -149,12 +216,223 @@ namespace com.cozyhome.Actors
                     }
                 }
                 else // nothing discovered, end out of our ground loop.
-                {
                     _groundtracelen = 0F;
+            }
+
+            while (_pushbackcount++ < ActorHeader.MAX_PUSHBACKS)
+            {
+                _arc.Overlap(
+                    _tracepos,
+                    _orient,
+                    _filter,
+                    0F,
+                    QueryTriggerInteraction.Ignore,
+                    _colliders,
+                    out int _overlapsfound);
+
+                ArchetypeHeader.OverlapFilters.FilterSelf(
+                    ref _overlapsfound,
+                    _self,
+                    _colliders);
+
+                if (_overlapsfound == 0) // nothing !
+                    break;
+                else
+                {
+                    for (int _colliderindex = 0; _colliderindex < _overlapsfound; _colliderindex++)
+                    {
+                        Collider _other = _colliders[_colliderindex];
+                        Transform _otherT = _other.GetComponent<Transform>();
+
+                        if (Physics.ComputePenetration(_self, _tracepos, _orient, _other, _otherT.position, _otherT.rotation, out Vector3 _normal, out float _distance))
+                        {
+                            _tracepos += _normal * (_distance + _skin);
+
+                            PM_SlideDetermineImmediateGeometry(ref _vel,
+                                ref _lastplane,
+                                _actor.DeterminePlaneStability(_normal, _other),
+                                _normal,
+                                _ground.normal,
+                                _ground.stable && _ground.snapped,
+                                _up,
+                                ref _gflags);
+                            break;
+                        }
+                    }
                 }
             }
 
+            while (_bumpcount++ <= ActorHeader.MAX_BUMPS
+                  && _tf > 0)
+            {
+                // Begin Trace
+                Vector3 _trace = _vel * _fdt;
+                float _tracelen = _trace.magnitude;
+
+                // IF unable to trace any further, break and end
+                if (_tracelen <= MIN_DISPLACEMENT)
+                {
+                    _tf = 0;
+                    break;
+                }
+                else
+                {
+                    _arc.Trace(
+                    _tracepos,
+                    _trace / _tracelen,
+                    _tracelen + _skin,
+                    _orient,
+                    _filter,
+                    0F,
+                    QueryTriggerInteraction.Ignore,
+                    _traces,
+                    out int _tracecount);
+
+                    ArchetypeHeader.TraceFilters.FindClosestFilterInvalids(
+                        ref _tracecount,
+                        out int _i0,
+                        _bias,
+                        _self,
+                        _traces);
+
+                    if (_i0 <= -1) // nothing discovered :::
+                    {
+                        _tf = 0; // end move
+                        _tracepos += _trace;
+                        break;
+                    }
+                    else // discovered an obstruction:::
+                    {
+                        RaycastHit _closest = _traces[_i0];
+                        Vector3 _normal = _closest.normal;
+
+                        float _rto = _closest.distance / _tracelen;
+                        _tf -= _rto;
+
+                        float _dis = (_closest.distance - _skin);
+                        _tracepos += (_trace / _tracelen) * _dis; // move back along the trace line!
+
+                        PM_SlideDetermineImmediateGeometry(ref _vel,
+                                ref _lastplane,
+                                _actor.DeterminePlaneStability(_normal, _closest.collider),
+                                _normal,
+                                _ground.normal,
+                                _ground.stable && _ground.snapped,
+                                _up,
+                                ref _gflags);
+                        continue;
+                    }
+                }
+            }
+
+            _pos = _tracepos;
         }
+
+        private static void PM_SlideDetermineImmediateGeometry(
+            ref Vector3 _vel,
+            ref Vector3 _lastplane,
+            bool _stability,
+            Vector3 _plane,
+            Vector3 _groundplane,
+            bool _groundstability,
+            Vector3 _up,
+            ref int _gflags)
+        {
+            switch (_gflags)
+            {
+                case 0: // plane detected
+                    PM_SlideClipVelocity(ref _vel, _stability, _plane, _groundstability, _groundplane, _up);
+                    _gflags |= (1 << 0);
+                    break;
+                case (1 << 0): // potential crease detected
+                    float _od = Mathf.Abs(VectorHeader.Dot(_lastplane, _plane));
+                    if (_od >= FLY_CREASE_EPSILON)
+                    {
+                        Vector3 _c = Vector3.Cross(_lastplane, _plane);
+                        _c.Normalize();
+                        VectorHeader.ProjectVector(ref _vel, _c);
+                        _gflags |= (1 << 1);
+                    }
+                    else
+                        PM_SlideClipVelocity(ref _vel, _stability, _plane, _groundstability, _groundplane, _up);
+                    break;
+                case (1 << 0) | (1 << 1): // corner detected
+                    _vel = Vector3.zero;
+                    _gflags |= (1 << 2);
+                    break;
+            }
+
+            _lastplane = _plane;
+        }
+
+        public static void PM_SlideClipVelocity(
+            ref Vector3 _velocity,
+            bool _stability,
+            Vector3 _plane,
+            bool _groundstability,
+            Vector3 _groundplane,
+            Vector3 _up)
+        {
+            float _m = _velocity.magnitude;
+            if (_m <= 0F) // preventing NaN generation
+                return;
+            else
+            {
+                if (VectorHeader.Dot(_velocity / _m, _plane) < 0F) // only clip if we're piercing into the infinite plane 
+                {
+                    if (_stability) // if stable, just orient and maintain magnitude
+                    {
+
+                        Vector3 R = Vector3.Cross(
+                            _velocity,
+                            _up
+                        );
+                        R.Normalize();
+
+                        Vector3 F = Vector3.Cross(
+                            _groundplane,
+                            R
+                        );
+
+                        F.Normalize();
+
+                        _velocity = F;
+                        _velocity *= _m;
+                    }
+                    else
+                    {
+                        if (_groundstability) // clip along the surface of the ground
+                        {
+                            VectorHeader.ClipVector(ref _velocity, _plane);
+
+                            Vector3 R = Vector3.Cross(
+                                _velocity,
+                                _up
+                            );
+                            R.Normalize();
+
+                            Vector3 F = Vector3.Cross(
+                                _groundplane,
+                                R
+                            );
+
+                            F.Normalize();
+
+                            _velocity = F;
+                            _velocity *= _m;
+
+                        }
+                        else // generic clip 
+                        {
+                            VectorHeader.ClipVector(ref _velocity, _plane);
+                        }
+                    }
+                }
+                else
+                    return;
+            }
+        }
+
 
         public static void PM_FlyMove(
             Actor _actor,
@@ -179,7 +457,7 @@ namespace com.cozyhome.Actors
             */
 
             /*
-            
+
                 Here i'll be summarizing the usage of each field found below before our discrete resolution loop:
 
                 Archetype - The Archetype class allows us to access each primitive's Archetype class which is required to be bundled
@@ -269,15 +547,16 @@ namespace com.cozyhome.Actors
                             _tracepos += _normal * (_distance + _skin);
 
                             if (VectorHeader.Dot(_vel, _normal) < 0F) // In this overlap, we  want the immediate normals
-                                PM_DetermineImmediateGeometry(ref _vel, ref _lastplane, _normal, ref _gflags);
+                                PM_FlyDetermineImmediateGeometry(ref _vel, ref _lastplane, _normal, ref _gflags);
+
+                            Debug.DrawRay(_tracepos, _normal * 2F, Color.red);
                             break;
                         }
                     }
                 }
             }
 
-            while (_bumpcount++ <= ActorHeader.MAX_BUMPS
-                  && _tf > 0)
+            while (_bumpcount++ <= ActorHeader.MAX_BUMPS && _tf > 0)
             {
                 // Begin Trace
                 Vector3 _trace = _vel * _fdt;
@@ -324,7 +603,7 @@ namespace com.cozyhome.Actors
                         float _dis = Mathf.Max(_closest.distance - _skin, 0F);
                         _tracepos += (_trace / _tracelen) * _dis; // move back along the trace line!
 
-                        PM_DetermineImmediateGeometry(ref _vel, ref _lastplane, _closest.normal, ref _gflags); // determine our topology state
+                        PM_FlyDetermineImmediateGeometry(ref _vel, ref _lastplane, _closest.normal, ref _gflags); // determine our topology state
                         continue;
                     }
                 }
@@ -333,31 +612,35 @@ namespace com.cozyhome.Actors
             _pos = _tracepos;
         }
 
-        private static void PM_DetermineImmediateGeometry(ref Vector3 _v, ref Vector3 _l, Vector3 _n, ref int _gflags)
+        private static void PM_FlyDetermineImmediateGeometry(
+            ref Vector3 _vel,
+            ref Vector3 _lastplane,
+            Vector3 _plane,
+            ref int _gflags)
         {
             switch (_gflags)
             {
                 case 0: // plane detected
-                    PM_FlyClipVelocity(ref _v, _n);
+                    PM_FlyClipVelocity(ref _vel, _plane);
                     _gflags |= (1 << 0);
                     break;
                 case (1 << 0): // potential crease detected
-                    if (Mathf.Abs(VectorHeader.Dot(_l, _n)) >= FLY_CREASE_EPSILON)
+                    if (Mathf.Abs(VectorHeader.Dot(_lastplane, _plane)) >= FLY_CREASE_EPSILON)
                     {
-                        Vector3 _c = Vector3.Cross(_l, _n);
+                        Vector3 _c = Vector3.Cross(_lastplane, _plane);
                         _c.Normalize();
-                        VectorHeader.ProjectVector(ref _v, _c);
+                        VectorHeader.ProjectVector(ref _vel, _c);
                         _gflags |= (1 << 1);
                     }
                     else
-                        PM_FlyClipVelocity(ref _v, _n);
+                        PM_FlyClipVelocity(ref _vel, _plane);
                     break;
                 case (1 << 0) | (1 << 1): // corner detected
-                    _v = Vector3.zero;
+                    _vel = Vector3.zero;
                     _gflags |= (1 << 2);
                     break;
             }
-            _l = _n;
+            _lastplane = _plane;
         }
 
         public static void PM_FlyClipVelocity(ref Vector3 _velocity, Vector3 _plane)
@@ -381,7 +664,7 @@ namespace com.cozyhome.Actors
         }
 
         public const int MAX_GROUNDBUMPS = 2; // # of ground snaps/iterations in a SlideMove() 
-        public const int MAX_PUSHBACKS = 3; // # of iterations in our Pushback() funcs
+        public const int MAX_PUSHBACKS = 4; // # of iterations in our Pushback() funcs
         public const int MAX_BUMPS = 8; // # of iterations in our Move() funcs
         public const int MAX_HITS = 8; // # of RaycastHit[] structs allocated to
                                        // a hit buffer.
