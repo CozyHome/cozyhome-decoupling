@@ -42,7 +42,7 @@ public class SimpleFPSMover : MonoBehaviour
             _wishvel = Vector3.ClampMagnitude(_wishvel, 1.0F);
 
             _Actor.SetVelocity(_wishvel * _MaxSpeed);
-            ActorHeader.Actor.Move(_Actor, GlobalTime.FDT);
+            ActorHeader.Move(_Actor, GlobalTime.FDT);
 
             transform.position = _Actor._position;
         }

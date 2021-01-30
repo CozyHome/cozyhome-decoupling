@@ -42,7 +42,6 @@ namespace com.cozyhome.Actors
 
         public abstract class Actor : MonoBehaviour
         {
-
             [Header("Move Type Properties")]
             [SerializeField] private MoveType _moveType = MoveType.Fly;
             [SerializeField] private SlideSnapType _snapType = SlideSnapType.Always;
@@ -365,7 +364,7 @@ namespace com.cozyhome.Actors
             float _groundtracelen = (_lastground.stable && _lastground.snapped) ? 0.5F : 0.1F;
 
             while (_groundbumpcount++ < MAX_GROUNDBUMPS &&
-            _groundtracelen > 0F)
+                _groundtracelen > 0F)
             {
                 // trace along dir
                 // if detected 
@@ -403,7 +402,7 @@ namespace com.cozyhome.Actors
                     _ground.actorpoint = _groundtracepos;
                     _ground.stable = _actor.DetermineGroundStability(in _closest);
 
-                    _groundtracepos += _groundtracedir * _closest.distance;
+                    _groundtracepos += _groundtracedir * (_closest.distance);
                     // warp regardless of stablility. We'll only be setting our trace position
                     // to our ground trace position if a stable floor has been determined, and snapping is enabled. 
 
@@ -423,7 +422,44 @@ namespace com.cozyhome.Actors
 
                         if (_cansnap)
                         {
-                            _groundtracepos += _up * (_skin);
+                            //_groundtracepos += _up * (_skin) / 2F;
+                            // gonna keep the typo bc pog
+                            // shoot up check for snap availability
+                            _arc.Trace(
+                                _groundtracepos,
+                                _up,
+                                _skin + 0.1F,
+                                _orient,
+                                _filter,
+                                0F,
+                                QueryTriggerInteraction.Ignore,
+                                _traces,
+                                out int _stepcunt);
+
+                            ArchetypeHeader.TraceFilters.FindClosestFilterInvalids(ref _stepcunt,
+                                out int _i1,
+                                _bias,
+                                _self,
+                                _traces);
+
+                            if (_i1 >= 0)
+                            {
+                                RaycastHit _snap = _traces[_i1];
+                                _groundtracepos += _up * Mathf.Max(_snap.distance - _skin, 0F);
+
+                                _gflags |= (1 << 2);
+                                Vector3 _c = Vector3.Cross(_snap.normal, _ground.normal);
+                                _c.Normalize();
+
+                                Vector3 _f = Vector3.Cross(_up, _c);
+                                _f.Normalize();
+
+                                if (VectorHeader.Dot(_vel, _f) <= 0F)
+                                    VectorHeader.ProjectVector(ref _vel, _c);
+                            }
+                            else
+                                _groundtracepos += _up * (_skin);
+
                             _tracepos = _groundtracepos;
                             _ground.snapped = true;
 
@@ -433,21 +469,20 @@ namespace com.cozyhome.Actors
                             float _m = _vel.magnitude;
 
                             Vector3 R = Vector3.Cross(
-                                _vel,
-                                _up
+                               _vel,
+                               _up
                             );
                             R.Normalize();
 
                             Vector3 F = Vector3.Cross(
-                                _ground.normal,
-                                R
+                               _ground.normal,
+                               R
                             );
 
                             F.Normalize();
                             _vel = F;
                             _vel *= _m;
                         }
-
                         _groundtracelen = 0F;
                     }
                     else
@@ -462,7 +497,7 @@ namespace com.cozyhome.Actors
                     _groundtracelen = 0F;
             }
 
-            while (_pushbackcount++ < ActorHeader.MAX_PUSHBACKS)
+            while (_pushbackcount++ <= ActorHeader.MAX_PUSHBACKS)
             {
                 _arc.Overlap(
                     _tracepos,
@@ -514,10 +549,7 @@ namespace com.cozyhome.Actors
 
                 // IF unable to trace any further, break and end
                 if (_tracelen <= MIN_DISPLACEMENT)
-                {
                     _tf = 0;
-                    break;
-                }
                 else
                 {
                     _arc.Trace(
@@ -552,7 +584,7 @@ namespace com.cozyhome.Actors
                         float _rto = _closest.distance / _tracelen;
                         _tf -= _rto;
 
-                        float _dis = (_closest.distance - _skin);
+                        float _dis = _closest.distance - _skin;
                         _tracepos += (_trace / _tracelen) * _dis; // move back along the trace line!
 
                         PM_SlideDetermineImmediateGeometry(ref _vel,
@@ -588,8 +620,9 @@ namespace com.cozyhome.Actors
                     _gflags |= (1 << 0);
                     break;
                 case (1 << 0): // potential crease detected
+
                     float _od = Mathf.Abs(VectorHeader.Dot(_lastplane, _plane));
-                    if (_od < FLY_CREASE_EPSILON)
+                    if (!_stability && _od < FLY_CREASE_EPSILON)
                     {
                         Vector3 _c = Vector3.Cross(_lastplane, _plane);
                         _c.Normalize();
@@ -625,7 +658,6 @@ namespace com.cozyhome.Actors
                 {
                     if (_stability) // if stable, just orient and maintain magnitude
                     {
-
                         Vector3 R = Vector3.Cross(
                             _velocity,
                             _up

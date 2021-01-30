@@ -119,7 +119,7 @@ namespace com.cozyhome.Archetype
 
             public abstract void Inflate(float _amt);
             public abstract void Deflate(float _amt);
-            
+
         }
 
         [System.Serializable]
