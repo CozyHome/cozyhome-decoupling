@@ -627,16 +627,14 @@ namespace com.cozyhome.Actors
                         Vector3 _c2 = Vector3.Cross(_lastplane, _plane);
                         _c2.Normalize();
                         VectorHeader.ProjectVector(ref _vel, _c2);
-                        
+                        _gflags |= (1 << 1);
                     }
                     else
                         PM_SlideClipVelocity(ref _vel, _stability, _plane, _groundstability, _groundplane, _up);
                     break;
-                // case (1 << 0) | (1 << 1): // multiple creases detected
-                //     Vector3 _c1 = Vector3.Cross(_lastplane, _plane);
-                //     _c1.Normalize();
-                //     VectorHeader.ProjectVector(ref _vel, _c1);
-                //     break;
+                case (1 << 0) | (1 << 1): // multiple creases detected
+                    _vel = Vector3.zero;
+                    break;
             }
 
             _lastplane = _plane;
