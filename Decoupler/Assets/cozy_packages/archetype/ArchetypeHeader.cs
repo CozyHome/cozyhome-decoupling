@@ -88,17 +88,8 @@ namespace com.cozyhome.Archetype
             0.002F // box
         };
 
-        private static readonly float[] TRACELOSS = new float[3]
-        {
-            0.01F, // sphere
-            0.01F, // capsule
-            0.01F // box
-        };
-
         public static float GET_SKINEPSILON(int _i0) => SKINEPSILON[_i0];
         public static float GET_TRACEBIAS(int _i0) => TRACEBIAS[_i0];
-
-        public static float GET_TRACELOSS(int _i0) => TRACELOSS[_i0];
 
         [System.Serializable]
         public abstract class Archetype : Object

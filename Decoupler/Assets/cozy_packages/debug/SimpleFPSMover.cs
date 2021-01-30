@@ -41,16 +41,8 @@ public class SimpleFPSMover : MonoBehaviour
             Vector3 _wishvel = _View.rotation * new Vector3(_input[0], 0, _input[1]);
             _wishvel = Vector3.ClampMagnitude(_wishvel, 1.0F);
 
-            /*
-            com.cozyhome.Vectors.VectorHeader.ClipVector(
-                ref _wishvel,
-                Vector3.up
-            );
-            _wishvel.Normalize();
-            */
-
             _Actor.SetVelocity(_wishvel * _MaxSpeed);
-            _Actor.Slide(GlobalTime.FDT);
+            ActorHeader.Actor.Move(_Actor, GlobalTime.FDT);
 
             transform.position = _Actor._position;
         }
