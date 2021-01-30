@@ -741,12 +741,12 @@ namespace com.cozyhome.Actors
             );
         }
 
-        public const int MAX_GROUNDBUMPS = 2; // # of ground snaps/iterations in a SlideMove() 
+        public const int MAX_GROUNDBUMPS = 3; // # of ground snaps/iterations in a SlideMove() 
         public const int MAX_PUSHBACKS = 4; // # of iterations in our Pushback() funcs
-        public const int MAX_BUMPS = 8; // # of iterations in our Move() funcs
-        public const int MAX_HITS = 8; // # of RaycastHit[] structs allocated to
+        public const int MAX_BUMPS = 6; // # of iterations in our Move() funcs
+        public const int MAX_HITS = 6; // # of RaycastHit[] structs allocated to
                                        // a hit buffer.
-        public const int MAX_OVERLAPS = 8; // # of Collider classes allocated to a
+        public const int MAX_OVERLAPS = 6; // # of Collider classes allocated to a
                                            // overlap buffer.
         public const float MIN_DISPLACEMENT = 0.001F; // min squared length of a displacement vector required for a Move() to proceed.
         public const float FLY_CREASE_EPSILON = 1F; // minimum distance angle during a crease check to disregard any normals being queried.
