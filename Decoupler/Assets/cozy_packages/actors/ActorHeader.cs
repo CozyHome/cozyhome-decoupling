@@ -420,46 +420,45 @@ namespace com.cozyhome.Actors
                                 break;
                         }
 
+                        // gonna keep the typo bc pog
+                        // shoot up check for snap availability
+                        _arc.Trace(
+                            _groundtracepos,
+                            _up,
+                            _skin + 0.1F,
+                            _orient,
+                            _filter,
+                            0F,
+                            QueryTriggerInteraction.Ignore,
+                            _traces,
+                            out int _stepcunt);
+
+                        ArchetypeHeader.TraceFilters.FindClosestFilterInvalids(ref _stepcunt,
+                            out int _i1,
+                            _bias,
+                            _self,
+                            _traces);
+
+                        if (_i1 >= 0)
+                        {
+                            RaycastHit _snap = _traces[_i1];
+                            _groundtracepos += _up * Mathf.Max(_snap.distance - _skin, 0F);
+
+                            _gflags |= (1 << 1);
+                            Vector3 _c = Vector3.Cross(_snap.normal, _ground.normal);
+                            _c.Normalize();
+
+                            Vector3 _f = Vector3.Cross(_up, _c);
+                            _f.Normalize();
+
+                            if (VectorHeader.Dot(_vel, _f) <= 0F)
+                                VectorHeader.ProjectVector(ref _vel, _c);
+                        }
+                        else
+                            _groundtracepos += _up * (_skin);
+
                         if (_cansnap)
                         {
-                            //_groundtracepos += _up * (_skin) / 2F;
-                            // gonna keep the typo bc pog
-                            // shoot up check for snap availability
-                            _arc.Trace(
-                                _groundtracepos,
-                                _up,
-                                _skin + 0.1F,
-                                _orient,
-                                _filter,
-                                0F,
-                                QueryTriggerInteraction.Ignore,
-                                _traces,
-                                out int _stepcunt);
-
-                            ArchetypeHeader.TraceFilters.FindClosestFilterInvalids(ref _stepcunt,
-                                out int _i1,
-                                _bias,
-                                _self,
-                                _traces);
-
-                            if (_i1 >= 0)
-                            {
-                                RaycastHit _snap = _traces[_i1];
-                                _groundtracepos += _up * Mathf.Max(_snap.distance - _skin, 0F);
-
-                                _gflags |= (1 << 2);
-                                Vector3 _c = Vector3.Cross(_snap.normal, _ground.normal);
-                                _c.Normalize();
-
-                                Vector3 _f = Vector3.Cross(_up, _c);
-                                _f.Normalize();
-
-                                if (VectorHeader.Dot(_vel, _f) <= 0F)
-                                    VectorHeader.ProjectVector(ref _vel, _c);
-                            }
-                            else
-                                _groundtracepos += _up * (_skin);
-
                             _tracepos = _groundtracepos;
                             _ground.snapped = true;
 
@@ -483,6 +482,7 @@ namespace com.cozyhome.Actors
                             _vel = F;
                             _vel *= _m;
                         }
+
                         _groundtracelen = 0F;
                     }
                     else
@@ -497,7 +497,7 @@ namespace com.cozyhome.Actors
                     _groundtracelen = 0F;
             }
 
-            while (_pushbackcount++ <= ActorHeader.MAX_PUSHBACKS)
+            while (_pushbackcount++ < ActorHeader.MAX_PUSHBACKS)
             {
                 _arc.Overlap(
                     _tracepos,
@@ -540,7 +540,7 @@ namespace com.cozyhome.Actors
                 }
             }
 
-            while (_bumpcount++ <= ActorHeader.MAX_BUMPS
+            while (_bumpcount++ < ActorHeader.MAX_BUMPS
                   && _tf > 0)
             {
                 // Begin Trace
@@ -624,18 +624,19 @@ namespace com.cozyhome.Actors
                     float _od = Mathf.Abs(VectorHeader.Dot(_lastplane, _plane));
                     if (!_stability && _od < FLY_CREASE_EPSILON)
                     {
-                        Vector3 _c = Vector3.Cross(_lastplane, _plane);
-                        _c.Normalize();
-                        VectorHeader.ProjectVector(ref _vel, _c);
-                        _gflags |= (1 << 1);
+                        Vector3 _c2 = Vector3.Cross(_lastplane, _plane);
+                        _c2.Normalize();
+                        VectorHeader.ProjectVector(ref _vel, _c2);
+                        
                     }
                     else
                         PM_SlideClipVelocity(ref _vel, _stability, _plane, _groundstability, _groundplane, _up);
                     break;
-                case (1 << 0) | (1 << 1): // corner detected
-                    _vel = Vector3.zero;
-                    _gflags |= (1 << 2);
-                    break;
+                // case (1 << 0) | (1 << 1): // multiple creases detected
+                //     Vector3 _c1 = Vector3.Cross(_lastplane, _plane);
+                //     _c1.Normalize();
+                //     VectorHeader.ProjectVector(ref _vel, _c1);
+                //     break;
             }
 
             _lastplane = _plane;
