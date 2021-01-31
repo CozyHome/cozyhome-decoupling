@@ -94,7 +94,6 @@ namespace com.cozyhome.Archetype
         [System.Serializable]
         public abstract class Archetype : Object
         {
-
             public abstract void Overlap(
                 Vector3 _pos,
                 Quaternion _orient,

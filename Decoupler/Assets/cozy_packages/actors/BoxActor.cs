@@ -17,8 +17,14 @@ namespace com.cozyhome.Actors
                 GetComponent<BoxCollider>()
             );
         }        
-        public void OnActorBump(Vector3 _pos, Vector3 _velocity, RaycastHit _hit) { }
-        public void OnActorOverlap(Vector3 _normal, Collider _collider) { }
+        public void OnActorBump(Vector3 _pos, Vector3 _velocity, RaycastHit _hit) 
+        {
+
+        }
+        public void OnActorOverlap(Vector3 _normal, Collider _collider) 
+        {
+
+        }
 
         public override ArchetypeHeader.Archetype GetArchetype()
         => BoxArchetype;

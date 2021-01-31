@@ -14,11 +14,8 @@ namespace com.cozyhome.Systems
             SystemsInjector.RegisterLateSystem(_executionindex, this);
         }
 
-        public void OnFixedUpdate()
-        { }
-        public void OnLateUpdate()
-        { }
-        public void OnUpdate()
-        { }
+        public void OnFixedUpdate() { }
+        public void OnLateUpdate() { }
+        public void OnUpdate() { }
     }
 }

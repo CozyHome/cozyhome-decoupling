@@ -303,8 +303,7 @@ namespace com.cozyhome.Actors
             float _m = _velocity.magnitude;
             if (_m <= 0F) // preventing NaN generation
                 return;
-            else
-                if (VectorHeader.Dot(_velocity / _m, _plane) < 0F) // only clip if we're piercing into the infinite plane 
+            else if (VectorHeader.Dot(_velocity / _m, _plane) < 0F) // only clip if we're piercing into the infinite plane 
                 VectorHeader.ClipVector(ref _velocity, _plane);
         }
 
@@ -319,7 +318,6 @@ namespace com.cozyhome.Actors
             LayerMask _filter,
             float _fdt)
         {
-            SlideSnapType _snaptype = _actor.SnapType;
 
             /* STEPS:
                 RUN:
@@ -327,6 +325,7 @@ namespace com.cozyhome.Actors
             */
 
             ArchetypeHeader.Archetype _arc = _actor.GetArchetype();
+            SlideSnapType _snaptype = _actor.SnapType;
             Collider[] _colliders = _actor.Colliders;
             Collider _self = _arc.Collider();
 
@@ -375,8 +374,7 @@ namespace com.cozyhome.Actors
                 // continue
                 // else : 
                 // break out of loop as no floor was detected
-                _arc.Trace(
-                    _groundtracepos,
+                _arc.Trace(_groundtracepos,
                     _groundtracedir,
                     _groundtracelen,
                     _orient,
@@ -442,9 +440,9 @@ namespace com.cozyhome.Actors
                         if (_i1 >= 0)
                         {
                             RaycastHit _snap = _traces[_i1];
-                            _groundtracepos += _up * Mathf.Max(_snap.distance - _skin, 0F);
+                            _groundtracepos += _up * Mathf.Max(
+                                Mathf.Min(_snap.distance - _skin, _skin), 0F);
 
-                            _gflags |= (1 << 1);
                             Vector3 _c = Vector3.Cross(_snap.normal, _ground.normal);
                             _c.Normalize();
 
@@ -452,7 +450,10 @@ namespace com.cozyhome.Actors
                             _f.Normalize();
 
                             if (VectorHeader.Dot(_vel, _f) <= 0F)
+                            {
+                                _gflags |= (1 << 1);
                                 VectorHeader.ProjectVector(ref _vel, _c);
+                            }
                         }
                         else
                             _groundtracepos += _up * (_skin);
@@ -531,7 +532,7 @@ namespace com.cozyhome.Actors
                                 _actor.DeterminePlaneStability(_normal, _other),
                                 _normal,
                                 _ground.normal,
-                                _ground.stable,
+                                _ground.stable && _ground.snapped,
                                 _up,
                                 ref _gflags);
                             break;
@@ -552,16 +553,15 @@ namespace com.cozyhome.Actors
                     _tf = 0;
                 else
                 {
-                    _arc.Trace(
-                    _tracepos,
-                    _trace / _tracelen,
-                    _tracelen + _skin,
-                    _orient,
-                    _filter,
-                    0F,
-                    QueryTriggerInteraction.Ignore,
-                    _traces,
-                    out int _tracecount);
+                    _arc.Trace(_tracepos,
+                        _trace / _tracelen,
+                        _tracelen + _skin,
+                        _orient,
+                        _filter,
+                        0F,
+                        QueryTriggerInteraction.Ignore,
+                        _traces,
+                        out int _tracecount);
 
                     ArchetypeHeader.TraceFilters.FindClosestFilterInvalids(
                         ref _tracecount,
@@ -592,7 +592,7 @@ namespace com.cozyhome.Actors
                                 _actor.DeterminePlaneStability(_normal, _closest.collider),
                                 _normal,
                                 _ground.normal,
-                                _ground.stable,
+                                _ground.stable && _ground.snapped,
                                 _up,
                                 ref _gflags);
                         continue;
@@ -634,6 +634,7 @@ namespace com.cozyhome.Actors
                     break;
                 case (1 << 0) | (1 << 1): // multiple creases detected
                     _vel = Vector3.zero;
+                    _gflags |= (1 << 2);
                     break;
             }
 
@@ -657,6 +658,10 @@ namespace com.cozyhome.Actors
                 {
                     if (_stability) // if stable, just orient and maintain magnitude
                     {
+                        // I really should make a helper orientation method, but I'm too fuckin'
+                        // lazy to be bothered :)
+
+                        // anyways just orient along the newly discovered stable plane
                         Vector3 R = Vector3.Cross(
                             _velocity,
                             _up
@@ -677,9 +682,11 @@ namespace com.cozyhome.Actors
                     {
                         if (_groundstability) // clip along the surface of the ground
                         {
+                            // clip normally
                             VectorHeader.ClipVector(ref _velocity, _plane);
                             float _c = _velocity.magnitude;
 
+                            // orient velocity to ground plane
                             Vector3 R = Vector3.Cross(
                                 _velocity,
                                 _up
@@ -693,14 +700,17 @@ namespace com.cozyhome.Actors
 
                             F.Normalize();
 
+                            // i'd originally used this but when orienting velocities above certain planes,
+                            // issues would arise where velocities would be clipped and projected in the opposite
+                            // direction of where the character should be moving, so I'm resorting to orienting
+                            // in this particular scenario....
+                            // VectorHeader.ClipVector(ref _vel, _groundplane);
+
                             _velocity = F;
                             _velocity *= _c;
-
                         }
-                        else // generic clip 
-                        {
+                        else // wall clip
                             VectorHeader.ClipVector(ref _velocity, _plane);
-                        }
                     }
                 }
                 else

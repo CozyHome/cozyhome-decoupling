@@ -45,7 +45,7 @@ namespace com.cozyhome.Systems
                 return;
             else
             {
-                for (int i=0; i < _updatesystems.Count; i++)
+                for (int i = 0; i < _updatesystems.Count; i++)
                     _updatesystems.Values[i].OnUpdate();
                 return;
             }
