@@ -1,5 +1,3 @@
-using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
 
 using com.cozyhome.Actors;
@@ -42,7 +40,7 @@ public class SimpleFPSMover : MonoBehaviour
             _wishvel = Vector3.ClampMagnitude(_wishvel, 1.0F);
 
             _Actor.SetVelocity(_wishvel * _MaxSpeed);
-            ActorHeader.Move(_Actor, GlobalTime.FDT);
+            ActorHeader.Move(null, _Actor, GlobalTime.FDT);
 
             transform.position = _Actor._position;
         }

@@ -3,7 +3,7 @@ using UnityEngine;
 
 namespace com.cozyhome.Actors
 {
-    [RequireComponent(typeof(SphereCollider))] public class SphereActor : ActorHeader.Actor, ActorHeader.IActor
+    [RequireComponent(typeof(SphereCollider))] public class SphereActor : ActorHeader.Actor
     {
         [System.NonSerialized] private ArchetypeHeader.SphereArchetype SphereArchetype;
         /* UnityEngine */
@@ -17,8 +17,6 @@ namespace com.cozyhome.Actors
                 GetComponent<SphereCollider>()
             );
         }
-        public void OnActorBump(Vector3 _pos, Vector3 _velocity, RaycastHit _hit) { }
-        public void OnActorOverlap(Vector3 _normal, Collider _collider) { }
 
         public override ArchetypeHeader.Archetype GetArchetype()
         => SphereArchetype;

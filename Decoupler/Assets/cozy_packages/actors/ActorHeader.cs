@@ -13,7 +13,7 @@ namespace com.cozyhome.Actors
         // experiencing excessive slowdowns, I don't really know
         // how C# optimizes these sorts of things, so just give
         // me a break :)
-        private delegate void MoveFunc(Actor _actor, float fdt);
+        private delegate void MoveFunc(IActorReceiver _rec, Actor _actor, float fdt);
         private static readonly MoveFunc[] _movefuncs = new MoveFunc[3]
         {
             Actor.Fly, // 0
@@ -27,7 +27,7 @@ namespace com.cozyhome.Actors
 
         // Now that I think about it, I should really write a complementary sub-package that links the ActorHeader to some state machine based integration
         // specifically designed for the Actor system I've designed (just a thought). 
-        public static void Move(Actor _actor, float fdt) => _movefuncs[(int)_actor.MoveType].Invoke(_actor, fdt);
+        public static void Move(IActorReceiver _rec, Actor _actor, float fdt) => _movefuncs[(int)_actor.MoveType].Invoke(_rec, _actor, fdt);
 
         public enum SlideSnapType { Never = 0, Toggled = 1, Always = 2 };
         public enum MoveType { Fly = 0, /* PM_FlyMove() */ Slide = 1, /* PM_SlideMove() */  Noclip = 2 /* PM_NoclipMove() */  };
@@ -95,9 +95,9 @@ namespace com.cozyhome.Actors
 
             // Feel free to call these methods directly if you'd like. I don't plan on forcing anyone on a particular path to achieve something
             // as simple as displacing a primitive.
-            public static void Fly(Actor _actor, float fdt) => PM_FlyMove(_actor, ref _actor._position, ref _actor._velocity, _actor._orientation, _actor._filter, fdt);
-            public static void Slide(Actor _actor, float fdt) => PM_SlideMove(_actor, ref _actor._position, ref _actor._velocity, _actor._orientation, _actor._filter, fdt);
-            public static void Noclip(Actor _actor, float fdt) => PM_NoclipMove(ref _actor._position, ref _actor._velocity, fdt);
+            public static void Fly(IActorReceiver _rec, Actor _actor, float fdt) => PM_FlyMove(_rec, _actor, ref _actor._position, ref _actor._velocity, _actor._orientation, _actor._filter, fdt);
+            public static void Slide(IActorReceiver _rec, Actor _actor, float fdt) => PM_SlideMove(_rec, _actor, ref _actor._position, ref _actor._velocity, _actor._orientation, _actor._filter, fdt);
+            public static void Noclip(IActorReceiver _rec, Actor _actor, float fdt) => PM_NoclipMove(_rec, ref _actor._position, ref _actor._velocity, fdt);
 
             public void SetVelocity(Vector3 _velocity) => this._velocity = _velocity;
             public void SetPosition(Vector3 _position) => this._position = _position;
@@ -116,6 +116,7 @@ namespace com.cozyhome.Actors
         // this method primarily if you are dealing with a sort of 'spectating' or 'flying' mechanic for your
         // actors. 
         public static void PM_FlyMove(
+            IActorReceiver _rec,
             Actor _actor,
             ref Vector3 _pos,
             ref Vector3 _vel,
@@ -342,6 +343,7 @@ namespace com.cozyhome.Actors
         // planes in the physics scene. Use this method primarily if you plan on keeping your actor level
         // with the floor.
         public static void PM_SlideMove(
+            IActorReceiver _rec,
             Actor _actor,
             ref Vector3 _pos,
             ref Vector3 _vel,
@@ -626,6 +628,7 @@ namespace com.cozyhome.Actors
                                 _ground.stable && _ground.snapped,
                                 _up,
                                 ref _gflags);
+
                         continue;
                     }
                 }
@@ -770,6 +773,7 @@ namespace com.cozyhome.Actors
         // purposes but I've chosen to include it as it may come of use for you when giving players the ability
         // to change MoveFunc states.
         public static void PM_NoclipMove(
+            IActorReceiver _rec,
             ref Vector3 _pos,
             ref Vector3 _vel,
             float _fdt)
@@ -787,9 +791,15 @@ namespace com.cozyhome.Actors
 
         #endregion
 
-        public interface IActor
+
+        // In an effort to remove Actor Object & Callback Object coupling, you'll be required to pass reference to an IActorReceiver interface
+        // whenever calling your move funcs as this will allow you to directly respond to information received during any of the Move() executions
+        // during tracing/grounding/overlapping.. etc.
+        //     For an example of how I go about this, check the SimpleFPSMover.cs script found in the debug package provided in this repo. 
+        public interface IActorReceiver 
         {
-            
+            void OnGroundHit();
+            void OnTraceHit();
         }
 
         public const int MAX_GROUNDBUMPS = 3; // # of ground snaps/iterations in a SlideMove() 

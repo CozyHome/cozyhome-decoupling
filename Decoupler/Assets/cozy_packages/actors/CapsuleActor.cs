@@ -4,7 +4,7 @@ using UnityEngine;
 namespace com.cozyhome.Actors
 {
     [RequireComponent(typeof(CapsuleCollider))]
-    public class CapsuleActor : ActorHeader.Actor, ActorHeader.IActor
+    public class CapsuleActor : ActorHeader.Actor
     {
         [System.NonSerialized] private ArchetypeHeader.CapsuleArchetype CapsuleArchetype;
         /* UnityEngine */
@@ -19,10 +19,17 @@ namespace com.cozyhome.Actors
             );
         }
 
-        public void OnActorBump(Vector3 _pos, Vector3 _velocity, RaycastHit _hit) { }
-        public void OnActorOverlap(Vector3 _normal, Collider _collider) { }
-
         public override ArchetypeHeader.Archetype GetArchetype()
         => CapsuleArchetype;
+
+        public override bool DeterminePlaneStability(Vector3 _normal, Collider _other) 
+        {
+            return base.DeterminePlaneStability(_normal, _other);
+        }
+
+        public override bool DetermineGroundStability(in RaycastHit _hit)
+        {
+            return base.DetermineGroundStability(_hit);
+        }
     }
 }
