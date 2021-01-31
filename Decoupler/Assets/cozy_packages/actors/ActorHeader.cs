@@ -102,10 +102,13 @@ namespace com.cozyhome.Actors
             public void SetVelocity(Vector3 _velocity) => this._velocity = _velocity;
             public void SetPosition(Vector3 _position) => this._position = _position;
             public void SetOrientation(Quaternion _orientation) => this._orientation = _orientation;
+            public void SetMoveType(MoveType _movetype) => this._moveType = _movetype;
+            internal void SetSnapEnabled(bool _snapenabled) => this._snapenabled = _snapenabled;
 
             public abstract ArchetypeHeader.Archetype GetArchetype();
             public virtual bool DetermineGroundStability(in RaycastHit _hit) => Vector3.Angle(_hit.normal, _orientation * Vector3.up) <= MaximumStableSlideAngle;
             public virtual bool DeterminePlaneStability(Vector3 _normal, Collider _other) => Vector3.Angle(_normal, _orientation * Vector3.up) <= MaximumStableSlideAngle;
+
         }
 
         #region Fly
@@ -351,6 +354,9 @@ namespace com.cozyhome.Actors
             LayerMask _filter,
             float _fdt)
         {
+            /* BASE CASES IN WHICH WE SHOULDN'T MOVE AT ALL */
+            if (_rec == null)
+                return;
 
             /* STEPS:
                 RUN:
@@ -407,9 +413,9 @@ namespace com.cozyhome.Actors
                 // continue
                 // else : 
                 // break out of loop as no floor was detected
-                _arc.Trace(_groundtracepos,
+                _arc.Trace(_groundtracepos - _groundtracedir * 0.1F,
                     _groundtracedir,
-                    _groundtracelen,
+                    _groundtracelen + 0.1F,
                     _orient,
                     _filter,
                     0F,
@@ -433,7 +439,7 @@ namespace com.cozyhome.Actors
                     _ground.actorpoint = _groundtracepos;
                     _ground.stable = _actor.DetermineGroundStability(in _closest);
 
-                    _groundtracepos += _groundtracedir * (_closest.distance);
+                    _groundtracepos += _groundtracedir * (_closest.distance - 0.1F);
                     // warp regardless of stablility. We'll only be setting our trace position
                     // to our ground trace position if a stable floor has been determined, and snapping is enabled. 
 
@@ -473,8 +479,6 @@ namespace com.cozyhome.Actors
                         if (_i1 >= 0)
                         {
                             RaycastHit _snap = _traces[_i1];
-                            _groundtracepos += _up * Mathf.Max(
-                                Mathf.Min(_snap.distance - _skin, _skin), 0F);
 
                             Vector3 _c = Vector3.Cross(_snap.normal, _ground.normal);
                             _c.Normalize();
@@ -484,9 +488,16 @@ namespace com.cozyhome.Actors
 
                             if (VectorHeader.Dot(_vel, _f) <= 0F)
                             {
+                                if(VectorHeader.Dot(_vel, _snap.normal) < 0F)
+                                    _rec.OnTraceHit(in _snap, _groundtracepos, _vel);
+                                
                                 _gflags |= (1 << 1);
                                 VectorHeader.ProjectVector(ref _vel, _c);
+
                             }
+
+                            _groundtracepos += _up * Mathf.Max(
+                                Mathf.Min(_snap.distance - _skin, _skin), 0F);
                         }
                         else
                             _groundtracepos += _up * (_skin);
@@ -515,9 +526,11 @@ namespace com.cozyhome.Actors
                             F.Normalize();
                             _vel = F;
                             _vel *= _m;
+
                         }
 
                         _groundtracelen = 0F;
+                        _rec.OnGroundHit(in _ground, in _lastground);
                     }
                     else
                     {
@@ -619,6 +632,8 @@ namespace com.cozyhome.Actors
 
                         float _dis = _closest.distance - _skin;
                         _tracepos += (_trace / _tracelen) * _dis; // move back along the trace line!
+                        
+                        _rec.OnTraceHit(in _closest, in _tracepos, in _vel);
 
                         PM_SlideDetermineImmediateGeometry(ref _vel,
                                 ref _lastplane,
@@ -628,6 +643,7 @@ namespace com.cozyhome.Actors
                                 _ground.stable && _ground.snapped,
                                 _up,
                                 ref _gflags);
+
 
                         continue;
                     }
@@ -796,10 +812,10 @@ namespace com.cozyhome.Actors
         // whenever calling your move funcs as this will allow you to directly respond to information received during any of the Move() executions
         // during tracing/grounding/overlapping.. etc.
         //     For an example of how I go about this, check the SimpleFPSMover.cs script found in the debug package provided in this repo. 
-        public interface IActorReceiver 
+        public interface IActorReceiver
         {
-            void OnGroundHit();
-            void OnTraceHit();
+            void OnGroundHit(in GroundHit _ground, in GroundHit _lastground);
+            void OnTraceHit(in RaycastHit _trace, in Vector3 _position, in Vector3 _velocity);
         }
 
         public const int MAX_GROUNDBUMPS = 3; // # of ground snaps/iterations in a SlideMove() 

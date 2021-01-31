@@ -1,10 +1,12 @@
 using UnityEngine;
 
+using com.cozyhome.Vectors;
 using com.cozyhome.Actors;
 using com.cozyhome.Systems;
 
-public class SimpleFPSMover : MonoBehaviour
+public class SimpleFPSMover : MonoBehaviour, ActorHeader.IActorReceiver
 {
+    [SerializeField] private bool _pushrigidbodies;
     [SerializeField] [Range(0, 89.9F)] float _MaxVerticalAngle = 85F;
     [SerializeField] float _MaxSpeed = 12F;
     [SerializeField] ActorHeader.Actor _Actor;
@@ -39,8 +41,28 @@ public class SimpleFPSMover : MonoBehaviour
             Vector3 _wishvel = _View.rotation * new Vector3(_input[0], 0, _input[1]);
             _wishvel = Vector3.ClampMagnitude(_wishvel, 1.0F);
 
-            _Actor.SetVelocity(_wishvel * _MaxSpeed);
-            ActorHeader.Move(null, _Actor, GlobalTime.FDT);
+            if (_Actor.Ground.stable)
+            {
+                Vector3 _rit = Vector3.Cross(_wishvel, R * new Vector3(0, 1, 0));
+                _rit.Normalize();
+
+                Vector3 _fwd = Vector3.Cross(_Actor.Ground.normal, _rit);
+                _fwd.Normalize();
+
+                _wishvel = _fwd * (_wishvel.magnitude);
+
+                _Actor.SetVelocity(_wishvel * _MaxSpeed);
+            }
+            else
+                _Actor.SetVelocity(_Actor._velocity - Vector3.up * GlobalTime.FDT * 39.62F);
+
+            if (_Actor.Ground.stable && Input.GetAxis("Fire1") > 0)
+            {
+                _Actor.SetSnapEnabled(false);
+                _Actor.SetVelocity(_Actor._velocity + Vector3.up * 10F);
+            }
+
+            ActorHeader.Move(this, _Actor, GlobalTime.FDT);
 
             transform.position = _Actor._position;
         }
@@ -85,5 +107,31 @@ public class SimpleFPSMover : MonoBehaviour
         R = Quaternion.LookRotation(fwd);
 
         return R;
+    }
+
+    public void OnGroundHit(in ActorHeader.GroundHit _ground, in ActorHeader.GroundHit _lastground) { }
+    public void OnTraceHit(in RaycastHit _trace, in Vector3 _position, in Vector3 _velocity)
+    {
+        bool _stbl = _Actor.DetermineGroundStability(_trace);
+
+        if (_stbl)
+            _Actor.SetSnapEnabled(true);
+        else
+        {
+            if (_pushrigidbodies)
+            {
+                Rigidbody _r = _trace.rigidbody;
+                if (_r)
+                {
+                    const float _simulatedmass = 1F;
+                    float _mr = (_simulatedmass) / _r.mass;
+                    _r.AddForceAtPosition(
+                        _mr * VectorHeader.ProjectVector(_velocity, _trace.normal),
+                        _trace.point,
+                        ForceMode.Impulse
+                    );
+                }
+            }
+        }
     }
 }
