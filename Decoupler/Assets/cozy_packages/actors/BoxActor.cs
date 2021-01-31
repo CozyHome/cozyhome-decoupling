@@ -26,7 +26,6 @@ namespace com.cozyhome.Actors
 
         }
 
-        public override ArchetypeHeader.Archetype GetArchetype()
-        => BoxArchetype;
+        public override ArchetypeHeader.Archetype GetArchetype() => BoxArchetype;
     }
 }

@@ -7,6 +7,12 @@ namespace com.cozyhome.Actors
 {
     public static class ActorHeader
     {
+        // I've chosen to use a function pointer mapping instead
+        // of an ugly switch statement as it just seems more
+        // convenient this way. Feel free to change it if you're
+        // experiencing excessive slowdowns, I don't really know
+        // how C# optimizes these sorts of things, so just give
+        // me a break :)
         private delegate void MoveFunc(Actor _actor, float fdt);
         private static readonly MoveFunc[] _movefuncs = new MoveFunc[3]
         {
@@ -16,11 +22,20 @@ namespace com.cozyhome.Actors
         };
 
         // im a bit worried about casting to int but premature optimization isn't healthy and should fuck off for the time being
+        // ActorHeader.Move() will be the main function that you'll be using to interface with in order to get your character moving around in the scene.
+        // In order to efficiently interface with these move calls you'll benefit from are the IActor callbacks automatically attached to your actor.
+
+        // Now that I think about it, I should really write a complementary sub-package that links the ActorHeader to some state machine based integration
+        // specifically designed for the Actor system I've designed (just a thought). 
         public static void Move(Actor _actor, float fdt) => _movefuncs[(int)_actor.MoveType].Invoke(_actor, fdt);
 
         public enum SlideSnapType { Never = 0, Toggled = 1, Always = 2 };
         public enum MoveType { Fly = 0, /* PM_FlyMove() */ Slide = 1, /* PM_SlideMove() */  Noclip = 2 /* PM_NoclipMove() */  };
 
+        // A shameless data class that I use to store grounding information. I'm not fucking bothering
+        // with getters and setters as they pollute the class and make it more complicated than it 
+        // needs to be. If you somehow change the data in these hits, that's on you. I've kept it open-ended
+        // so anybody can do what they want with this class when handling the actor's state.
         public class GroundHit
         {
             public Vector3 actorpoint; // our actor's position at the time of our hit
@@ -43,15 +58,18 @@ namespace com.cozyhome.Actors
         public abstract class Actor : MonoBehaviour
         {
             [Header("Move Type Properties")]
+            [Tooltip("The move type the actor will resort to when its Move func is called by the end-user. \nFly = The actor will fly around the scene whilst resolving collision.\nSlide = The actor will slide around the scene whilst resolving collision and simulating ground detection.\nNoclip = The actor will fly around the scene whilst ignoring all collisions")]
             [SerializeField] private MoveType _moveType = MoveType.Fly;
+
+            [Tooltip("The snap type the actor will abide by when determining its ground state. \nNever = The actor will never snap to the ground. \nToggled = The actor will only snap to the ground if its snapenabled boolean is set to true. \nAlways = The actor will always snap to the ground.")]
             [SerializeField] private SlideSnapType _snapType = SlideSnapType.Always;
-            [SerializeField] private bool _snapenabled = true;
+            [Tooltip("Whether or not the actor will snap to the ground if its snap type is set to SlideSnapType.Toggled enum.")] [SerializeField] private bool _snapenabled = true;
 
             [Header("Ground Stability Properties")]
-            [SerializeField] private float MaximumStableSlideAngle = 65F;
+            [Tooltip("The maximum angular difference a traced plane must make to the grounding plane in order to be classified as an obstruction.")] [SerializeField] private float MaximumStableSlideAngle = 65F;
 
             [Header("Actor Filter Properties")]
-            [SerializeField] private LayerMask _filter;
+            [Tooltip("A Bitmask to help you filter out specific sets of colliders you want this actor to ignore during its movement.")] [SerializeField] private LayerMask _filter;
 
             [System.NonSerialized] private readonly GroundHit _groundhit = new GroundHit();
             [System.NonSerialized] private readonly GroundHit _lastgroundhit = new GroundHit();
@@ -75,6 +93,8 @@ namespace com.cozyhome.Actors
             public GroundHit Ground => _groundhit;
             public GroundHit LastGround => _lastgroundhit;
 
+            // Feel free to call these methods directly if you'd like. I don't plan on forcing anyone on a particular path to achieve something
+            // as simple as displacing a primitive.
             public static void Fly(Actor _actor, float fdt) => PM_FlyMove(_actor, ref _actor._position, ref _actor._velocity, _actor._orientation, _actor._filter, fdt);
             public static void Slide(Actor _actor, float fdt) => PM_SlideMove(_actor, ref _actor._position, ref _actor._velocity, _actor._orientation, _actor._filter, fdt);
             public static void Noclip(Actor _actor, float fdt) => PM_NoclipMove(ref _actor._position, ref _actor._velocity, fdt);
@@ -90,6 +110,11 @@ namespace com.cozyhome.Actors
 
         #region Fly
 
+        // PM_FlyMove() is one of the Move() variants packaged with the Actor sub-package found in the
+        // decoupling GitHub repository. It's purpose is to allow the player to 'fly' around the physics scene
+        // whilst also keeping into account the colliders and geometric planes that represent your levels. Use 
+        // this method primarily if you are dealing with a sort of 'spectating' or 'flying' mechanic for your
+        // actors. 
         public static void PM_FlyMove(
             Actor _actor,
             ref Vector3 _pos,
@@ -310,6 +335,12 @@ namespace com.cozyhome.Actors
         #endregion
 
         #region Slide
+
+        // PM_SlideMove() is one of the several variant Move() funcs available standard with the
+        // Actor package provided. It's entire purpose is to 'slide' and 'snap' the Actor on 'stable'
+        // surfaces whilst also dealing with the conventional issue of movement into and along blocking
+        // planes in the physics scene. Use this method primarily if you plan on keeping your actor level
+        // with the floor.
         public static void PM_SlideMove(
             Actor _actor,
             ref Vector3 _pos,
@@ -603,6 +634,13 @@ namespace com.cozyhome.Actors
             _pos = _tracepos;
         }
 
+        // This func is vital to preventing undesirable behaviour throughout the lifetime of the
+        // PM_SlideMove() execution loop. This function is responsible for identifying the geometry around
+        // an actor's position throughout the duration of the move. 
+        // It is responsible for:
+        //      Handling generic velocity clipping
+        //      Handling generic crease projecting
+        //      Preventing tunneling at corners/creases at any point in our movement.
         private static void PM_SlideDetermineImmediateGeometry(
             ref Vector3 _vel,
             ref Vector3 _lastplane,
@@ -641,6 +679,12 @@ namespace com.cozyhome.Actors
             _lastplane = _plane;
         }
 
+
+        // The velocity 'clipping' algorithm that is ran any time a plane is detected throughout
+        // the PM_SlideMove() func execution.
+        // It is responsible for:
+        //      Handling velocity orientation along stable planes
+        //      Handling velocity clipping along unstable 'wall' planes
         public static void PM_SlideClipVelocity(
             ref Vector3 _velocity,
             bool _stability,
@@ -722,6 +766,9 @@ namespace com.cozyhome.Actors
 
         #region Noclip
 
+        // PM_NoclipMove() is the last variant in the Move() subset provided. It is mostly used for debugging
+        // purposes but I've chosen to include it as it may come of use for you when giving players the ability
+        // to change MoveFunc states.
         public static void PM_NoclipMove(
             ref Vector3 _pos,
             ref Vector3 _vel,
@@ -742,12 +789,7 @@ namespace com.cozyhome.Actors
 
         public interface IActor
         {
-            void OnActorOverlap(Vector3 _normal, Collider _collider);
-            void OnActorBump(
-                Vector3 _pos, // character's position
-                Vector3 _velocity, // character's unclipped velocity
-                RaycastHit _hit // physics's hit structure
-            );
+            
         }
 
         public const int MAX_GROUNDBUMPS = 3; // # of ground snaps/iterations in a SlideMove() 
