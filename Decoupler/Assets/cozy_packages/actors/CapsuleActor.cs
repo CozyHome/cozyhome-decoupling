@@ -33,6 +33,19 @@ namespace com.cozyhome.Actors
                 && DetermineEdgeStability(_vel, _hit.point, _hit.normal, _gfilter);
         }
 
+        // rework ledge detection: 
+        //  1. simplify/abstract this further so there is less boilerplate inlined in method
+        // 2. fix scenarios in which capsules will orient themselves along the ledge and launching themselves
+        // into the air
+
+        // i think determination should not include modification of any source data unless I specifically tell it to inside of my 
+        // slide algo
+
+        // bitflags are the key to returning information about the determination if anything
+        // this method/chain of execution is very ugly at the moment, no plans to fix anytime soon as i'd rather focus on other things.
+        // the system does what I want it to and that's really all that matters
+
+        // feel free to tear it apart though if you'd like :)
         private bool DetermineEdgeStability(in Vector3 _vel,
             Vector3 _hitpoint,
             Vector3 _hitnormal,
@@ -43,7 +56,7 @@ namespace com.cozyhome.Actors
             _fp.Normalize();
 
             const float _auxvertheight = 0.05F;
-            const float _auxvertwidth = 0.001F;
+            const float _auxvertwidth = 0.01F;
             int _eflags = 0;
 
             Vector3 _auxvert = _u * _auxvertheight;
@@ -81,9 +94,18 @@ namespace com.cozyhome.Actors
             if (_i0 >= 0 && this.DeterminePlaneStability(_internalhits[_i0].normal, _internalhits[_i0].collider))
                 _eflags |= (1 << 1);
 
-            if (_eflags != ((1 << 0) | (1 << 1)) &&
-                VectorHeader.Dot(_velocity, _fp) > 0F) // ledge detected & velocity exiting normal dir
+            float _ed = VectorHeader.Dot(_velocity, _fp);
+
+            if (_eflags != ((1 << 0) | (1 << 1))) // ledge detected & velocity exiting normal dir
+            {
+                if (_ed > 0F)
                     return false;
+                else
+                {
+                    VectorHeader.ClipVector(ref _velocity, _u);
+                    return true;
+                }
+            }
             else
                 return true;
         }

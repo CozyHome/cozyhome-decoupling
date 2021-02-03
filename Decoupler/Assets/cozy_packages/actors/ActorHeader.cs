@@ -520,9 +520,9 @@ namespace com.cozyhome.Actors
                             float _m = _vel.magnitude;
 
                             Vector3 R = Vector3.Cross(
-                               _vel,
-                               _up
-                            );
+                                   _vel,
+                                   _up
+                                );
                             R.Normalize();
 
                             Vector3 F = Vector3.Cross(
@@ -533,7 +533,6 @@ namespace com.cozyhome.Actors
                             F.Normalize();
                             _vel = F;
                             _vel *= _m;
-
                         }
 
                         _groundtracelen = 0F;

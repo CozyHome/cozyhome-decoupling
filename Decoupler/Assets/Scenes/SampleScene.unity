@@ -865,7 +865,7 @@ MonoBehaviour:
   _moveType: 1
   _snapType: 1
   _snapenabled: 1
-  MaximumStableSlideAngle: 45
+  MaximumStableSlideAngle: 60
   _filter:
     serializedVersion: 2
     m_Bits: 1
