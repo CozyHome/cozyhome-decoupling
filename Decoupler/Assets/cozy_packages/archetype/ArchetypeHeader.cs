@@ -4,6 +4,24 @@ namespace com.cozyhome.Archetype
 {
     public static class ArchetypeHeader
     {
+        public static int TraceRay(
+            Vector3 _position,
+            Vector3 _direction,
+            float _mag,
+            RaycastHit[] _traces,
+            LayerMask _filter)
+        {
+            _position -= _direction * GET_TRACEBIAS(ARCHETYPE_LINE);
+
+            int nbhits = Physics.RaycastNonAlloc(_position,
+                _direction,
+                _traces, _mag + GET_TRACEBIAS(ARCHETYPE_LINE),
+                _filter,
+                QueryTriggerInteraction.Ignore);
+
+            return nbhits;
+        }
+
         public static class OverlapFilters
         {
             public static void FilterSelf(
@@ -73,6 +91,7 @@ namespace com.cozyhome.Archetype
         public static readonly int ARCHETYPE_SPHERE = 0;
         public static readonly int ARCHETYPE_CAPSULE = 1;
         public static readonly int ARCHETYPE_BOX = 2;
+        public static readonly int ARCHETYPE_LINE = 3;
 
         private static readonly float[] SKINEPSILON = new float[3]
         {
@@ -81,11 +100,12 @@ namespace com.cozyhome.Archetype
             0.001F // box
         };
 
-        private static readonly float[] TRACEBIAS = new float[3]
+        private static readonly float[] TRACEBIAS = new float[4]
         {
             0.002F, // sphere
             0.002F, // capsule
-            0.002F // box
+            0.002F, // box
+            0.0F // line
         };
 
         public static float GET_SKINEPSILON(int _i0) => SKINEPSILON[_i0];
@@ -235,6 +255,8 @@ namespace com.cozyhome.Archetype
                 _collider.height -= _amt;
                 _collider.radius -= _amt / 2F;
             }
+
+            public float Height() => _collider.height;
         }
 
         [System.Serializable]

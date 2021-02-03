@@ -20,5 +20,8 @@ namespace com.cozyhome.Actors
 
         public override ArchetypeHeader.Archetype GetArchetype()
         => SphereArchetype;
+
+        public override bool DetermineGroundStability(Vector3 _vel, RaycastHit _hit, LayerMask _gfilter)
+            => base.DeterminePlaneStability(_hit.normal, _hit.collider);
     }
 }

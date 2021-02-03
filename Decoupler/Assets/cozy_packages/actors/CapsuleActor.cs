@@ -1,6 +1,6 @@
 using com.cozyhome.Archetype;
 using UnityEngine;
-
+using com.cozyhome.Vectors;
 namespace com.cozyhome.Actors
 {
     [RequireComponent(typeof(CapsuleCollider))]
@@ -22,14 +22,70 @@ namespace com.cozyhome.Actors
         public override ArchetypeHeader.Archetype GetArchetype()
         => CapsuleArchetype;
 
-        public override bool DeterminePlaneStability(Vector3 _normal, Collider _other) 
+        public override bool DeterminePlaneStability(Vector3 _normal, Collider _other)
         {
             return base.DeterminePlaneStability(_normal, _other);
         }
 
-        public override bool DetermineGroundStability(in RaycastHit _hit)
+        public override bool DetermineGroundStability(Vector3 _vel, RaycastHit _hit, LayerMask _gfilter)
         {
-            return base.DetermineGroundStability(_hit);
+            return base.DeterminePlaneStability(_hit.normal, _hit.collider)
+                && DetermineEdgeStability(_vel, _hit.point, _hit.normal, _gfilter);
+        }
+
+        private bool DetermineEdgeStability(in Vector3 _vel,
+            Vector3 _hitpoint,
+            Vector3 _hitnormal,
+            LayerMask _filter)
+        {
+            Vector3 _u = _orientation * new Vector3(0, 1, 0);
+            Vector3 _fp = VectorHeader.ClipVector(_hitnormal, _u);
+            _fp.Normalize();
+
+            const float _auxvertheight = 0.05F;
+            const float _auxvertwidth = 0.001F;
+            int _eflags = 0;
+
+            Vector3 _auxvert = _u * _auxvertheight;
+            Vector3 _auxhori = _fp * _auxvertwidth;
+
+            int _outercount = ArchetypeHeader.TraceRay(
+                _hitpoint + _auxvert + _auxhori,
+                -_u,
+                _auxvertheight + 0.1F,
+                _internalhits,
+                _filter);
+
+            ArchetypeHeader.TraceFilters.FindClosestFilterInvalids(ref _outercount,
+                out int _o0,
+                ArchetypeHeader.GET_TRACEBIAS(ArchetypeHeader.ARCHETYPE_LINE),
+                null,
+                _internalhits);
+
+            if (_o0 >= 0 && this.DeterminePlaneStability(_internalhits[_o0].normal, _internalhits[_o0].collider))
+                _eflags |= (1 << 0);
+
+            int _innercount = ArchetypeHeader.TraceRay(
+                _hitpoint + _auxvert - _auxhori,
+                -_u,
+                _auxvertheight + 0.1F,
+                _internalhits,
+                _filter);
+
+            ArchetypeHeader.TraceFilters.FindClosestFilterInvalids(ref _innercount,
+                out int _i0,
+                ArchetypeHeader.GET_TRACEBIAS(ArchetypeHeader.ARCHETYPE_LINE),
+                null,
+                _internalhits);
+
+            if (_i0 >= 0 && this.DeterminePlaneStability(_internalhits[_i0].normal, _internalhits[_i0].collider))
+                _eflags |= (1 << 1);
+
+            if (_eflags != ((1 << 0) | (1 << 1)) &&
+                VectorHeader.Dot(_velocity, _fp) > 0F) // ledge detected & velocity exiting normal dir
+                    return false;
+            else
+                return true;
         }
     }
 }

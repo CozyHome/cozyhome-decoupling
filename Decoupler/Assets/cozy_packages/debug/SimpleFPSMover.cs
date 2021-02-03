@@ -109,10 +109,14 @@ public class SimpleFPSMover : MonoBehaviour, ActorHeader.IActorReceiver
         return R;
     }
 
-    public void OnGroundHit(in ActorHeader.GroundHit _ground, in ActorHeader.GroundHit _lastground) { }
+    public void OnGroundHit(in ActorHeader.GroundHit _ground, in ActorHeader.GroundHit _lastground, LayerMask _gfilter) 
+    {
+
+    }
+
     public void OnTraceHit(in RaycastHit _trace, in Vector3 _position, in Vector3 _velocity)
     {
-        bool _stbl = _Actor.DetermineGroundStability(_trace);
+        bool _stbl = _Actor.Ground.stable;
 
         if (_stbl)
             _Actor.SetSnapEnabled(true);

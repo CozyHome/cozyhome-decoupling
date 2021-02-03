@@ -63,22 +63,25 @@ namespace com.cozyhome.Actors
 
             [Tooltip("The snap type the actor will abide by when determining its ground state. \nNever = The actor will never snap to the ground. \nToggled = The actor will only snap to the ground if its snapenabled boolean is set to true. \nAlways = The actor will always snap to the ground.")]
             [SerializeField] private SlideSnapType _snapType = SlideSnapType.Always;
-            [Tooltip("Whether or not the actor will snap to the ground if its snap type is set to SlideSnapType.Toggled enum.")] [SerializeField] private bool _snapenabled = true;
+            [Tooltip("Whether or not the actor will snap to the ground if its snap type is set to SlideSnapType.Toggled enum.")]
+            [SerializeField] private bool _snapenabled = true;
 
             [Header("Ground Stability Properties")]
-            [Tooltip("The maximum angular difference a traced plane must make to the grounding plane in order to be classified as an obstruction.")] [SerializeField] private float MaximumStableSlideAngle = 65F;
+            [Tooltip("The maximum angular difference a traced plane must make to the grounding plane in order to be classified as an obstruction.")]
+            [SerializeField] private float MaximumStableSlideAngle = 65F;
 
             [Header("Actor Filter Properties")]
-            [Tooltip("A Bitmask to help you filter out specific sets of colliders you want this actor to ignore during its movement.")] [SerializeField] private LayerMask _filter;
+            [Tooltip("A Bitmask to help you filter out specific sets of colliders you want this actor to ignore during its movement.")]
+            [SerializeField] protected LayerMask _filter;
 
             [System.NonSerialized] private readonly GroundHit _groundhit = new GroundHit();
             [System.NonSerialized] private readonly GroundHit _lastgroundhit = new GroundHit();
 
-            [System.NonSerialized] private readonly RaycastHit[] _internalhits = new RaycastHit[ActorHeader.MAX_HITS];
+            [System.NonSerialized] protected readonly RaycastHit[] _internalhits = new RaycastHit[ActorHeader.MAX_HITS];
 
-            [System.NonSerialized] private readonly Collider[] _internalcolliders = new Collider[ActorHeader.MAX_OVERLAPS];
+            [System.NonSerialized] protected readonly Collider[] _internalcolliders = new Collider[ActorHeader.MAX_OVERLAPS];
 
-            [System.NonSerialized] private readonly Vector3[] _internalnormals = new Vector3[ActorHeader.MAX_OVERLAPS];
+            [System.NonSerialized] protected readonly Vector3[] _internalnormals = new Vector3[ActorHeader.MAX_OVERLAPS];
 
             [System.NonSerialized] public Vector3 _position;
             [System.NonSerialized] public Vector3 _velocity;
@@ -106,7 +109,7 @@ namespace com.cozyhome.Actors
             internal void SetSnapEnabled(bool _snapenabled) => this._snapenabled = _snapenabled;
 
             public abstract ArchetypeHeader.Archetype GetArchetype();
-            public virtual bool DetermineGroundStability(in RaycastHit _hit) => Vector3.Angle(_hit.normal, _orientation * Vector3.up) <= MaximumStableSlideAngle;
+            public abstract bool DetermineGroundStability(Vector3 _vel, RaycastHit _hit, LayerMask _gfilter);
             public virtual bool DeterminePlaneStability(Vector3 _normal, Collider _other) => Vector3.Angle(_normal, _orientation * Vector3.up) <= MaximumStableSlideAngle;
 
         }
@@ -437,7 +440,7 @@ namespace com.cozyhome.Actors
                     _ground.distance = _closest.distance;
                     _ground.normal = _closest.normal;
                     _ground.actorpoint = _groundtracepos;
-                    _ground.stable = _actor.DetermineGroundStability(in _closest);
+                    _ground.stable = _actor.DetermineGroundStability(_vel, _closest, _filter);
 
                     _groundtracepos += _groundtracedir * (_closest.distance - 0.1F);
                     // warp regardless of stablility. We'll only be setting our trace position
@@ -456,6 +459,11 @@ namespace com.cozyhome.Actors
                                 _cansnap = _actor.SnapEnabled;
                                 break;
                         }
+
+                        if (_cansnap)
+                            _ground.snapped = true;
+
+                        _rec.OnGroundHit(in _ground, in _lastground, _filter);
 
                         // gonna keep the typo bc pog
                         // shoot up check for snap availability
@@ -488,9 +496,9 @@ namespace com.cozyhome.Actors
 
                             if (VectorHeader.Dot(_vel, _f) <= 0F)
                             {
-                                if(VectorHeader.Dot(_vel, _snap.normal) < 0F)
+                                if (VectorHeader.Dot(_vel, _snap.normal) < 0F)
                                     _rec.OnTraceHit(in _snap, _groundtracepos, _vel);
-                                
+
                                 _gflags |= (1 << 1);
                                 VectorHeader.ProjectVector(ref _vel, _c);
 
@@ -502,10 +510,9 @@ namespace com.cozyhome.Actors
                         else
                             _groundtracepos += _up * (_skin);
 
-                        if (_cansnap)
+                        if (_ground.snapped)
                         {
                             _tracepos = _groundtracepos;
-                            _ground.snapped = true;
 
                             _lastplane = _ground.normal;
                             _gflags |= (1 << 0);
@@ -530,7 +537,6 @@ namespace com.cozyhome.Actors
                         }
 
                         _groundtracelen = 0F;
-                        _rec.OnGroundHit(in _ground, in _lastground);
                     }
                     else
                     {
@@ -632,7 +638,7 @@ namespace com.cozyhome.Actors
 
                         float _dis = _closest.distance - _skin;
                         _tracepos += (_trace / _tracelen) * _dis; // move back along the trace line!
-                        
+
                         _rec.OnTraceHit(in _closest, in _tracepos, in _vel);
 
                         PM_SlideDetermineImmediateGeometry(ref _vel,
@@ -643,7 +649,6 @@ namespace com.cozyhome.Actors
                                 _ground.stable && _ground.snapped,
                                 _up,
                                 ref _gflags);
-
 
                         continue;
                     }
@@ -814,7 +819,7 @@ namespace com.cozyhome.Actors
         //     For an example of how I go about this, check the SimpleFPSMover.cs script found in the debug package provided in this repo. 
         public interface IActorReceiver
         {
-            void OnGroundHit(in GroundHit _ground, in GroundHit _lastground);
+            void OnGroundHit(in GroundHit _ground, in GroundHit _lastground, LayerMask _gfilter);
             void OnTraceHit(in RaycastHit _trace, in Vector3 _position, in Vector3 _velocity);
         }
 
