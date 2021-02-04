@@ -11,6 +11,7 @@ public class SimpleFPSMover : MonoBehaviour, ActorHeader.IActorReceiver
     [SerializeField] float _MaxSpeed = 12F;
     [SerializeField] ActorHeader.Actor _Actor;
     [SerializeField] Transform _View;
+    [SerializeField] AudioSource _src;
 
     void FixedUpdate()
     {
@@ -109,17 +110,17 @@ public class SimpleFPSMover : MonoBehaviour, ActorHeader.IActorReceiver
         return R;
     }
 
-    public void OnGroundHit(in ActorHeader.GroundHit _ground, in ActorHeader.GroundHit _lastground, LayerMask _gfilter) 
-    {
-
-    }
+    public void OnGroundHit(in ActorHeader.GroundHit _ground, in ActorHeader.GroundHit _lastground, LayerMask _gfilter)
+    { }
 
     public void OnTraceHit(in RaycastHit _trace, in Vector3 _position, in Vector3 _velocity)
     {
-        bool _stbl = _Actor.Ground.stable;
+        bool _stbl = _Actor.DeterminePlaneStability(_trace.normal, _trace.collider);
 
         if (_stbl)
             _Actor.SetSnapEnabled(true);
+
+        /*
         else
         {
             if (_pushrigidbodies)
@@ -128,14 +129,17 @@ public class SimpleFPSMover : MonoBehaviour, ActorHeader.IActorReceiver
                 if (_r)
                 {
                     const float _simulatedmass = 1F;
-                    float _mr = (_simulatedmass) / _r.mass;
+                    float _mr = (_simulatedmass / _r.mass);
                     _r.AddForceAtPosition(
                         _mr * VectorHeader.ProjectVector(_velocity, _trace.normal),
                         _trace.point,
                         ForceMode.Impulse
                     );
+
+                    _src.PlayOneShot(_src.clip, 1F);
                 }
             }
         }
+        */
     }
 }

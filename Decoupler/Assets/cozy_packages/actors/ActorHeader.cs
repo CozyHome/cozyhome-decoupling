@@ -106,7 +106,8 @@ namespace com.cozyhome.Actors
             public void SetPosition(Vector3 _position) => this._position = _position;
             public void SetOrientation(Quaternion _orientation) => this._orientation = _orientation;
             public void SetMoveType(MoveType _movetype) => this._moveType = _movetype;
-            internal void SetSnapEnabled(bool _snapenabled) => this._snapenabled = _snapenabled;
+            public void SetSnapType(SlideSnapType _snaptype) => this._snapType = _snaptype;
+            public void SetSnapEnabled(bool _snapenabled) => this._snapenabled = _snapenabled;
 
             public abstract ArchetypeHeader.Archetype GetArchetype();
             public abstract bool DetermineGroundStability(Vector3 _vel, RaycastHit _hit, LayerMask _gfilter);
@@ -402,7 +403,7 @@ namespace com.cozyhome.Actors
 
             _ground.Clear();
 
-            float _groundtracelen = (_lastground.stable && _lastground.snapped) ? 0.5F : 0.1F;
+            float _groundtracelen = (_lastground.stable && _lastground.snapped) ? 0.5F : 0.15F;
 
             while (_groundbumpcount++ < MAX_GROUNDBUMPS &&
                 _groundtracelen > 0F)
@@ -416,9 +417,9 @@ namespace com.cozyhome.Actors
                 // continue
                 // else : 
                 // break out of loop as no floor was detected
-                _arc.Trace(_groundtracepos - _groundtracedir * 0.1F,
+                _arc.Trace(_groundtracepos,
                     _groundtracedir,
-                    _groundtracelen + 0.1F,
+                    _groundtracelen,
                     _orient,
                     _filter,
                     0F,
@@ -442,7 +443,7 @@ namespace com.cozyhome.Actors
                     _ground.actorpoint = _groundtracepos;
                     _ground.stable = _actor.DetermineGroundStability(_vel, _closest, _filter);
 
-                    _groundtracepos += _groundtracedir * (_closest.distance - 0.1F);
+                    _groundtracepos += _groundtracedir * (_closest.distance);
                     // warp regardless of stablility. We'll only be setting our trace position
                     // to our ground trace position if a stable floor has been determined, and snapping is enabled. 
 
@@ -822,7 +823,7 @@ namespace com.cozyhome.Actors
             void OnTraceHit(in RaycastHit _trace, in Vector3 _position, in Vector3 _velocity);
         }
 
-        public const int MAX_GROUNDBUMPS = 3; // # of ground snaps/iterations in a SlideMove() 
+        public const int MAX_GROUNDBUMPS = 2; // # of ground snaps/iterations in a SlideMove() 
         public const int MAX_PUSHBACKS = 4; // # of iterations in our Pushback() funcs
         public const int MAX_BUMPS = 6; // # of iterations in our Move() funcs
         public const int MAX_HITS = 6; // # of RaycastHit[] structs allocated to
