@@ -403,7 +403,7 @@ namespace com.cozyhome.Actors
 
             _ground.Clear();
 
-            float _groundtracelen = (_lastground.stable && _lastground.snapped) ? 0.5F : 0.15F;
+            float _groundtracelen = (_lastground.stable && _lastground.snapped) ? 0.05F : 0.025F;
 
             while (_groundbumpcount++ < MAX_GROUNDBUMPS &&
                 _groundtracelen > 0F)
@@ -502,11 +502,10 @@ namespace com.cozyhome.Actors
 
                                 _gflags |= (1 << 1);
                                 VectorHeader.ProjectVector(ref _vel, _c);
-
                             }
 
                             _groundtracepos += _up * Mathf.Max(
-                                Mathf.Min(_snap.distance - _skin, _skin), 0F);
+                            Mathf.Min(_snap.distance - _skin, _skin), 0F);
                         }
                         else
                             _groundtracepos += _up * (_skin);
@@ -518,22 +517,7 @@ namespace com.cozyhome.Actors
                             _lastplane = _ground.normal;
                             _gflags |= (1 << 0);
 
-                            float _m = _vel.magnitude;
-
-                            Vector3 R = Vector3.Cross(
-                                   _vel,
-                                   _up
-                                );
-                            R.Normalize();
-
-                            Vector3 F = Vector3.Cross(
-                               _ground.normal,
-                               R
-                            );
-
-                            F.Normalize();
-                            _vel = F;
-                            _vel *= _m;
+                            VectorHeader.CrossProjection(ref _vel, _up, _ground.normal);
                         }
 
                         _groundtracelen = 0F;
@@ -730,21 +714,7 @@ namespace com.cozyhome.Actors
                         // lazy to be bothered :)
 
                         // anyways just orient along the newly discovered stable plane
-                        Vector3 R = Vector3.Cross(
-                            _velocity,
-                            _up
-                        );
-                        R.Normalize();
-
-                        Vector3 F = Vector3.Cross(
-                            _groundplane,
-                            R
-                        );
-
-                        F.Normalize();
-
-                        _velocity = F;
-                        _velocity *= _m;
+                        VectorHeader.CrossProjection(ref _velocity, _up, _groundplane);
                     }
                     else
                     {
@@ -752,30 +722,14 @@ namespace com.cozyhome.Actors
                         {
                             // clip normally
                             VectorHeader.ClipVector(ref _velocity, _plane);
-                            float _c = _velocity.magnitude;
-
                             // orient velocity to ground plane
-                            Vector3 R = Vector3.Cross(
-                                _velocity,
-                                _up
-                            );
-                            R.Normalize();
-
-                            Vector3 F = Vector3.Cross(
-                                _groundplane,
-                                R
-                            );
-
-                            F.Normalize();
+                            VectorHeader.CrossProjection(ref _velocity, _up, _groundplane);
 
                             // i'd originally used this but when orienting velocities above certain planes,
                             // issues would arise where velocities would be clipped and projected in the opposite
                             // direction of where the character should be moving, so I'm resorting to orienting
                             // in this particular scenario....
                             // VectorHeader.ClipVector(ref _vel, _groundplane);
-
-                            _velocity = F;
-                            _velocity *= _c;
                         }
                         else // wall clip
                             VectorHeader.ClipVector(ref _velocity, _plane);

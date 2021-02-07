@@ -35,7 +35,7 @@ namespace com.cozyhome.Actors
 
         // rework ledge detection: 
         //  1. simplify/abstract this further so there is less boilerplate inlined in method
-        // 2. fix scenarios in which capsules will orient themselves along the ledge and launching themselves
+        //  2. fix scenarios in which capsules will orient themselves along the ledge and launching themselves
         // into the air
 
         // i think determination should not include modification of any source data unless I specifically tell it to inside of my 

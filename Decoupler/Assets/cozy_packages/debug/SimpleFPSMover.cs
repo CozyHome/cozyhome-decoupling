@@ -6,14 +6,16 @@ namespace com.cozyhome.Debug
 {
     public class SimpleFPSMover : MonoBehaviour, ActorHeader.IActorReceiver
     {
-        [SerializeField] private bool _pushrigidbodies;
-        [SerializeField] [Range(0, 89.9F)] float _MaxVerticalAngle = 85F;
-        [SerializeField] float _MaxSpeed = 12F;
-        [SerializeField] ActorHeader.Actor _Actor;
-        [SerializeField] Transform _View;
-        [SerializeField] AudioSource _src;
+        [Header("FPS Mover Components")]
+        [SerializeField] private Transform _View;
+        [SerializeField] private ActorHeader.Actor _Actor;
 
-        void FixedUpdate()
+        [Header("Movement Parameters")]
+        [SerializeField] [Range(1F, 720F)] private float _LookSensitivity = 360F;
+        [SerializeField] [Range(0, 89.9F)] private float _MaxVerticalViewAngle = 85F;
+        [SerializeField] [Range(0, 100F)] private float _MaxMovementSpeed = 12F;
+
+        private void FixedUpdate()
         {
             if (!_Actor)
                 return;
@@ -29,7 +31,7 @@ namespace com.cozyhome.Debug
                 Quaternion R = LookRotate(
                     _View.rotation,
                     _mouse,
-                    _MaxVerticalAngle
+                    _MaxVerticalViewAngle
                 );
 
                 _View.rotation = R;
@@ -44,7 +46,7 @@ namespace com.cozyhome.Debug
 
                 if (_Actor.Ground.stable)
                 {
-                    Vector3 _rit = Vector3.Cross(_wishvel, R * new Vector3(0, 1, 0));
+                    Vector3 _rit = Vector3.Cross(_wishvel, _Actor._orientation * new Vector3(0, 1, 0));
                     _rit.Normalize();
 
                     Vector3 _fwd = Vector3.Cross(_Actor.Ground.normal, _rit);
@@ -52,7 +54,7 @@ namespace com.cozyhome.Debug
 
                     _wishvel = _fwd * (_wishvel.magnitude);
 
-                    _Actor.SetVelocity(_wishvel * _MaxSpeed);
+                    _Actor.SetVelocity(_wishvel * _MaxMovementSpeed);
                 }
                 else
                     _Actor.SetVelocity(_Actor._velocity - Vector3.up * GlobalTime.FDT * 39.62F);
@@ -69,7 +71,10 @@ namespace com.cozyhome.Debug
             }
         }
 
-        private Quaternion LookRotate(Quaternion _previous, Vector2 _delta, float _maxvertical)
+        private Quaternion LookRotate(
+            Quaternion _previous,
+            Vector2 _lookdelta,
+            float _maxvertical)
         {
             Quaternion R = _previous;
 
@@ -79,12 +84,12 @@ namespace com.cozyhome.Debug
                 new Vector3(0, 1, 0)
             );
 
-            _delta[0] *= (360F * GlobalTime.FDT);
-            _delta[1] *= (360F * GlobalTime.FDT);
+            _lookdelta[0] *= (360F * GlobalTime.FDT);
+            _lookdelta[1] *= (360F * GlobalTime.FDT);
 
             Vector3 fwd = R * new Vector3(0, 0, 1);
 
-            float _nextx = -_delta[1];
+            float _nextx = -_lookdelta[1];
 
             // if (cur angle + delta angle) > clamp angle
             // subtract difference from delta and apply
@@ -101,7 +106,7 @@ namespace com.cozyhome.Debug
                 ) * fwd;
 
             fwd = Quaternion.AngleAxis(
-                _delta[0],
+                _lookdelta[0],
                 new Vector3(0, 1, 0)
             ) * fwd;
 
@@ -110,7 +115,14 @@ namespace com.cozyhome.Debug
             return R;
         }
 
-        public void OnGroundHit(in ActorHeader.GroundHit _ground, in ActorHeader.GroundHit _lastground, LayerMask _gfilter)
+        private Vector3 DetermineWishDirection()
+        {
+            return Vector3.zero;
+        }
+
+        public void OnGroundHit(in ActorHeader.GroundHit _ground,
+            in ActorHeader.GroundHit _lastground,
+            LayerMask _gfilter)
         { }
 
         public void OnTraceHit(in RaycastHit _trace, in Vector3 _position, in Vector3 _velocity)
@@ -119,28 +131,6 @@ namespace com.cozyhome.Debug
 
             if (_stbl)
                 _Actor.SetSnapEnabled(true);
-
-            /*
-            else
-            {
-                if (_pushrigidbodies)
-                {
-                    Rigidbody _r = _trace.rigidbody;
-                    if (_r)
-                    {
-                        const float _simulatedmass = 1F;
-                        float _mr = (_simulatedmass / _r.mass);
-                        _r.AddForceAtPosition(
-                            _mr * VectorHeader.ProjectVector(_velocity, _trace.normal),
-                            _trace.point,
-                            ForceMode.Impulse
-                        );
-
-                        _src.PlayOneShot(_src.clip, 1F);
-                    }
-                }
-            }
-            */
         }
     }
 
