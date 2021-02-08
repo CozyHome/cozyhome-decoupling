@@ -37,7 +37,33 @@ public class ActorArgs
         ActorHolds.AssignHolds(_execution);
     }
 }
+[System.Serializable]
+public class ActorHolds : ConcurrentHeader.ExecutionMachine<ActorArgs>.ConcurrentExecution
+//      This execution generates a shit load of garbage every time you create a new method (104 Bytes-ish) so I suggest
+//      avoiding it for the time being
+{
+    private List<Func<ActorArgs, bool>> _heldexecutions;
 
+    protected override void OnExecutionDiscovery()
+    {
+        _heldexecutions = new List<Func<ActorArgs, bool>>();
+        RegisterExecution();
+        BeginExecution();
+    }
+
+    public override void Simulate(ActorArgs _args)
+    {
+        for (int i = 0; i < _heldexecutions.Count; i++)
+            if (_heldexecutions[i](_args))
+            {
+                _heldexecutions[i] = null;
+                _heldexecutions.RemoveAt(i);
+            }
+    }
+
+    public void AssignHolds(Func<ActorArgs, bool> _execution)
+    => _heldexecutions.Add(_execution);
+}
 [System.Serializable]
 public class ActorInput : ConcurrentHeader.ExecutionMachine<ActorArgs>.ConcurrentExecution
 {
@@ -164,7 +190,7 @@ public class ActorView : ConcurrentHeader.ExecutionMachine<ActorArgs>.Concurrent
 [System.Serializable]
 public class ActorWish : ConcurrentHeader.ExecutionMachine<ActorArgs>.ConcurrentExecution
 
-//      Actor Wish is responsible for determing what direction the actor 
+//      Actor Wish is responsible for determining what direction the actor 
 //      should be moving in PURELY based on their inputs.
 //      Dashing 
 //      Jumping 
@@ -191,11 +217,8 @@ public class ActorWish : ConcurrentHeader.ExecutionMachine<ActorArgs>.Concurrent
         Vector3 Velocity = Actor._velocity;
         Vector3 Wish = _args.ViewWishDir;
 
-        if (Ground.stable && !LastGround.stable)
-        {
+        if (Ground.stable && !LastGround.stable) // Landing
             VectorHeader.ClipVector(ref Velocity, Ground.normal);
-            Actor.SetSnapEnabled(true);
-        }
 
         // Orient Wish Velocity to grounding plane
         if (Ground.snapped && OrientVelocityToGroundPlane)
@@ -206,10 +229,8 @@ public class ActorWish : ConcurrentHeader.ExecutionMachine<ActorArgs>.Concurrent
             VectorHeader.ClipVector(ref Wish, new Vector3(0, 1, 0));
             Wish.Normalize();
         }
-        float _vm = Velocity.magnitude;
 
-        // clamp max speed
-        if (Ground.snapped)
+        if (Ground.snapped) // Subtract max speed based on stability 
             DetermineWishVelocity(ref Velocity, Wish, MaximumGroundMoveSpeed, GroundAcceleration * GlobalTime.FDT);
         else
             DetermineWishVelocity(ref Velocity, Wish, MaximumAirMoveSpeed, AirAcceleration * GlobalTime.FDT);
@@ -342,15 +363,26 @@ public class ActorJump : ConcurrentHeader.ExecutionMachine<ActorArgs>.Concurrent
 
             Actor.SetSnapEnabled(false); // disabling snapping until we've found the ground again
 
-
             Cursor.lockState = CursorLockMode.Locked;
-
             TimeJumpSnapshot = GlobalTime.T;
-        }
 
+            _args.AssignHold(WaitToSnapUntil);
+        }
         Actor.SetVelocity(Velocity);
     }
 
+    private bool WaitToSnapUntil(ActorArgs _args)
+    {
+        float D = GlobalTime.T - TimeJumpSnapshot;
+
+        if (D > 0.05F)
+        {
+            _args.Actor.SetSnapEnabled(true);
+            return true;
+        }
+
+        return false;
+    }
 }
 
 
@@ -390,34 +422,6 @@ public class ActorMove : ConcurrentHeader.ExecutionMachine<ActorArgs>.Concurrent
     {
 
     }
-}
-
-[System.Serializable]
-public class ActorHolds : ConcurrentHeader.ExecutionMachine<ActorArgs>.ConcurrentExecution
-//      This execution generates a shit load of garbage every time you create a new method (104 Bytes-ish) so I suggest
-//      avoiding it for the time being
-{
-    private List<Func<ActorArgs, bool>> _heldexecutions;
-
-    protected override void OnExecutionDiscovery()
-    {
-        _heldexecutions = new List<Func<ActorArgs, bool>>();
-        RegisterExecution();
-        BeginExecution();
-    }
-
-    public override void Simulate(ActorArgs _args)
-    {
-        for (int i = 0; i < _heldexecutions.Count; i++)
-            if (_heldexecutions[i](_args))
-            {
-                _heldexecutions[i] = null;
-                _heldexecutions.RemoveAt(i);
-            }
-    }
-
-    public void AssignHolds(Func<ActorArgs, bool> _execution)
-    => _heldexecutions.Add(_execution);
 }
 
 public class ActorBehaviour : ConcurrentHeader.ExecutionMachine<ActorArgs>.MonoExecution
