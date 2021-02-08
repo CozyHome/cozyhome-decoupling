@@ -14,4 +14,8 @@ public class ActorExecutioner : ConcurrentHeader.ExecutionMachine<ActorArgs>
     {
         this.Simulate(Middleman);
     }
+
+    // Custom Funcs
+    public void AssignHoldsObject(ActorHolds ActorHolds)
+        => Middleman.AssignHoldsObject(ActorHolds);
 }

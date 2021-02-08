@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using UnityEngine;
 using com.cozyhome.Actors;
 using com.cozyhome.ConcurrentExecution;
@@ -13,6 +14,7 @@ public class ActorArgs
     [Header("Reference Vars")]
     public ActorHeader.Actor Actor;
     public UnityEngine.Transform ActorTransform;
+    private ActorHolds ActorHolds;
     public UnityEngine.Transform ActorView;
 
     [Header("Input Vars")]
@@ -20,9 +22,20 @@ public class ActorArgs
     public Vector2 RawWishDir;
     public int ActionFlags;
 
-
     [Header("Projection Vars")]
     public Vector3 ViewWishDir;
+
+    [Header("Misc. Vars")]
+    public float Gravity = 9.81F;
+    public float GravitationalMultiplier = 4F;
+
+    public void AssignHoldsObject(ActorHolds ActorHolds)
+        => this.ActorHolds = ActorHolds;
+
+    public void AssignHold(Func<ActorArgs, bool> _execution)
+    {
+        ActorHolds.AssignHolds(_execution);
+    }
 }
 
 [System.Serializable]
@@ -159,8 +172,10 @@ public class ActorWish : ConcurrentHeader.ExecutionMachine<ActorArgs>.Concurrent
 {
     [Header("Wish Movement Parameters")]
     [SerializeField] private bool OrientVelocityToGroundPlane = true;
-    [SerializeField] private float ConstantAcceleration = 10.0F;
-    [SerializeField] private float MaximumMoveSpeed = 10.0F;
+    [SerializeField] private float GroundAcceleration = 10.0F;
+    [SerializeField] private float AirAcceleration = 20.0F;
+    [SerializeField] private float MaximumGroundMoveSpeed = 10.0F;
+    [SerializeField] private float MaximumAirMoveSpeed = 30.0F;
 
     protected override void OnExecutionDiscovery()
     {
@@ -172,20 +187,25 @@ public class ActorWish : ConcurrentHeader.ExecutionMachine<ActorArgs>.Concurrent
     {
         ActorHeader.Actor Actor = _args.Actor;
         ActorHeader.GroundHit Ground = Actor.Ground;
+        ActorHeader.GroundHit LastGround = Actor.LastGround;
         Vector3 Velocity = Actor._velocity;
         Vector3 Wish = _args.ViewWishDir;
+
+        if (Ground.stable && !LastGround.stable)
+            Actor.SetSnapEnabled(true);
 
         // Orient Wish Velocity to grounding plane
         if (Ground.snapped && OrientVelocityToGroundPlane)
             VectorHeader.CrossProjection(ref Wish, new Vector3(0, 1, 0), Ground.normal);
         else // Clip Wish Velocity along upward plane if we're not orienting/stable as we may be able to fight gravity if not done
             VectorHeader.ClipVector(ref Wish, new Vector3(0, 1, 0));
-
         float _vm = Velocity.magnitude;
 
-        DetermineWishVelocity(ref Velocity, Wish, MaximumMoveSpeed, ConstantAcceleration * GlobalTime.FDT);
-
         // clamp max speed
+        if (Ground.snapped)
+            DetermineWishVelocity(ref Velocity, Wish, MaximumGroundMoveSpeed, GroundAcceleration * GlobalTime.FDT);
+        else
+            DetermineWishVelocity(ref Velocity, Wish, MaximumAirMoveSpeed, AirAcceleration * GlobalTime.FDT);
 
         Actor.SetVelocity(Velocity);
 
@@ -204,7 +224,7 @@ public class ActorWish : ConcurrentHeader.ExecutionMachine<ActorArgs>.Concurrent
 
         if (_newspeed > _maxspeed)
         {   // Trim (circle strafe)
-            _velocity -= (_velocity / _vm) * (_newspeed - _maxspeed);
+            _velocity -= (_wish) * (_newspeed - _maxspeed);
         }
     }
 }
@@ -264,10 +284,6 @@ public class ActorFriction : ConcurrentHeader.ExecutionMachine<ActorArgs>.Concur
 [System.Serializable]
 public class ActorGravity : ConcurrentHeader.ExecutionMachine<ActorArgs>.ConcurrentExecution
 {
-    [System.NonSerialized] private static float GRAVITY = 9.81F;
-    [Header("Gravity Parameters")]
-    [SerializeField] private float GravitationalMultiplier = 4F;
-
     protected override void OnExecutionDiscovery()
     {
         BeginExecution();
@@ -282,13 +298,51 @@ public class ActorGravity : ConcurrentHeader.ExecutionMachine<ActorArgs>.Concurr
 
         bool _validgravity = Actor.Ground.stable;
 
-        Velocity -= new Vector3(0, 1, 0) * (GRAVITY * GravitationalMultiplier * GlobalTime.FDT);
+        Velocity -= new Vector3(0, 1, 0) * (_args.Gravity * _args.GravitationalMultiplier * GlobalTime.FDT);
 
         Actor.SetVelocity(Velocity);
 
         return;
     }
 }
+
+[System.Serializable]
+public class ActorJump : ConcurrentHeader.ExecutionMachine<ActorArgs>.ConcurrentExecution
+{
+    [Header("Jump Parameters")]
+    [SerializeField] private float JumpHeight = 2F;
+    [SerializeField] private float TimeJumpSnapshot = 0.0F;
+
+    protected override void OnExecutionDiscovery()
+    {
+        RegisterExecution();
+        BeginExecution();
+    }
+
+    public override void Simulate(ActorArgs _args)
+    {
+        ActorHeader.Actor Actor = _args.Actor;
+        ActorHeader.GroundHit Ground = Actor.Ground;
+        Vector3 Velocity = Actor._velocity;
+
+        bool JumpRequest = (_args.ActionFlags & (1 << 2)) != 0;
+
+        if (Ground.snapped && JumpRequest)
+        {
+            // Eliminate Y-component of our velocity:
+            Velocity[1] -= VectorHeader.Dot(Velocity, new Vector3(0, 1, 0));
+            Velocity[1] += Mathf.Sqrt(2 * (_args.Gravity * _args.GravitationalMultiplier) * JumpHeight);
+
+            Actor.SetSnapEnabled(false); // disabling snapping until we've found the ground again
+
+            TimeJumpSnapshot = GlobalTime.T;
+        }
+
+        Actor.SetVelocity(Velocity);
+    }
+
+}
+
 
 [System.Serializable]
 public class ActorMove : ConcurrentHeader.ExecutionMachine<ActorArgs>.ConcurrentExecution,
@@ -318,31 +372,69 @@ public class ActorMove : ConcurrentHeader.ExecutionMachine<ActorArgs>.Concurrent
     }
 
     public void OnGroundHit(in ActorHeader.GroundHit _ground, in ActorHeader.GroundHit _lastground, LayerMask _gfilter)
-    { }
+    {
+
+    }
 
     public void OnTraceHit(in RaycastHit _trace, in Vector3 _position, in Vector3 _velocity)
-    { }
+    {
+
+    }
+}
+
+[System.Serializable]
+public class ActorHolds : ConcurrentHeader.ExecutionMachine<ActorArgs>.ConcurrentExecution
+//      This execution generates a shit load of garbage every time you create a new method (104 Bytes-ish) so I suggest
+//      avoiding it for the time being
+{
+    private List<Func<ActorArgs, bool>> _heldexecutions;
+
+    protected override void OnExecutionDiscovery()
+    {
+        _heldexecutions = new List<Func<ActorArgs, bool>>();
+        RegisterExecution();
+        BeginExecution();
+    }
+
+    public override void Simulate(ActorArgs _args)
+    {
+        for (int i = 0; i < _heldexecutions.Count; i++)
+            if (_heldexecutions[i](_args))
+            {
+                _heldexecutions[i] = null;
+                _heldexecutions.RemoveAt(i);
+            }
+    }
+
+    public void AssignHolds(Func<ActorArgs, bool> _execution)
+    => _heldexecutions.Add(_execution);
 }
 
 public class ActorBehaviour : ConcurrentHeader.ExecutionMachine<ActorArgs>.MonoExecution
 {
     // List your Executions here
+    [SerializeField] private ActorHolds HoldsExecution;
     [SerializeField] private ActorInput InputExecution;
     [SerializeField] private ActorView ViewExecution;
     [SerializeField] private ActorWish WishExecution;
     [SerializeField] private ActorFriction FrictionExecution;
     [SerializeField] private ActorGravity GravityExecution;
+    [SerializeField] private ActorJump JumpExecution;
     [SerializeField] private ActorMove MoveExecution;
 
     public override void OnBehaviourDiscovered(
         Action<ConcurrentHeader.ExecutionMachine<ActorArgs>.ConcurrentExecution>[] ExecutionCommands)
     {
+        GetComponent<ActorExecutioner>().AssignHoldsObject(HoldsExecution);
+
         // Initialize all executions you want here
+        HoldsExecution.OnBaseDiscovery(ExecutionCommands);
         InputExecution.OnBaseDiscovery(ExecutionCommands);
         ViewExecution.OnBaseDiscovery(ExecutionCommands);
         WishExecution.OnBaseDiscovery(ExecutionCommands);
         FrictionExecution.OnBaseDiscovery(ExecutionCommands);
         GravityExecution.OnBaseDiscovery(ExecutionCommands);
+        JumpExecution.OnBaseDiscovery(ExecutionCommands);
         MoveExecution.OnBaseDiscovery(ExecutionCommands);
     }
 }

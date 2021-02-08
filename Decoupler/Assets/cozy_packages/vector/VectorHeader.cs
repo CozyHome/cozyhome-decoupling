@@ -115,9 +115,13 @@ namespace com.cozyhome.Vectors
         {
             float _m = _v.magnitude;
             Vector3 _r = Vector3.Cross(_v, _u);
-            _v = Vector3.Cross(_n, _r);
-            _v.Normalize();
-            _v *= _m;
+            Vector3 _f = Vector3.Cross(_n, _r);
+            if (_f.sqrMagnitude > 0)
+            {
+                _v = _f;
+                _v.Normalize();
+                _v *= _m;
+            }
         }
     }
 }

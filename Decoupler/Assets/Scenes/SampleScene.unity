@@ -684,7 +684,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1708579537}
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -17.25, y: 17.3, z: 32.2}
+  m_LocalPosition: {x: -7.231907, y: 17.171288, z: 34.7436}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_Children:
   - {fileID: 1082390715}
@@ -704,6 +704,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: a9908d899c20da24ea64ab92760a558a, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  HoldsExecution:
+    _key: NIL
+    _executionOffset: -1
   InputExecution:
     _key: Input
     _executionOffset: 0
@@ -724,22 +727,28 @@ MonoBehaviour:
     _key: Wish
     _executionOffset: 200
     OrientVelocityToGroundPlane: 1
-    ConstantAcceleration: 90
-    MaximumMoveSpeed: 20
+    GroundAcceleration: 270
+    AirAcceleration: 360
+    MaximumGroundMoveSpeed: 30
+    MaximumAirMoveSpeed: 45
   FrictionExecution:
     _key: Friction
     _executionOffset: 300
-    GroundFriction: 45
-    AirFriction: 25
+    GroundFriction: 150
+    AirFriction: 15
     LastGroundSnapshot: 0
     GroundFrictionLeeway: 0.1
   GravityExecution:
     _key: Gravity
     _executionOffset: 400
-    GravitationalMultiplier: 4
+  JumpExecution:
+    _key: Jump
+    _executionOffset: 500
+    JumpHeight: 2
+    TimeJumpSnapshot: 0
   MoveExecution:
     _key: Move
-    _executionOffset: 500
+    _executionOffset: 600
 --- !u!114 &1708579542
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -760,6 +769,8 @@ MonoBehaviour:
     RawWishDir: {x: 0, y: 0}
     ActionFlags: 0
     ViewWishDir: {x: 0, y: 0, z: 0}
+    Gravity: 9.81
+    GravitationalMultiplier: 4
 --- !u!1 &1745000394
 GameObject:
   m_ObjectHideFlags: 0
@@ -894,7 +905,7 @@ Transform:
   m_GameObject: {fileID: 1832850406}
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: -16.8, y: 15.220516, z: 31.567406}
-  m_LocalScale: {x: 60, y: 1, z: 60}
+  m_LocalScale: {x: 120, y: 1, z: 120}
   m_Children: []
   m_Father: {fileID: 0}
   m_RootOrder: 5
