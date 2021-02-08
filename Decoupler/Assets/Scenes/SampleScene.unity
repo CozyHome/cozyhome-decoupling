@@ -727,17 +727,17 @@ MonoBehaviour:
     _key: Wish
     _executionOffset: 200
     OrientVelocityToGroundPlane: 1
-    GroundAcceleration: 270
-    AirAcceleration: 360
+    GroundAcceleration: 1440
+    AirAcceleration: 125
     MaximumGroundMoveSpeed: 30
-    MaximumAirMoveSpeed: 45
+    MaximumAirMoveSpeed: 15
   FrictionExecution:
     _key: Friction
     _executionOffset: 300
-    GroundFriction: 150
-    AirFriction: 15
+    GroundFriction: 350
+    AirFriction: 1
     LastGroundSnapshot: 0
-    GroundFrictionLeeway: 0.1
+    GroundFrictionLeeway: 0.025
   GravityExecution:
     _key: Gravity
     _executionOffset: 400

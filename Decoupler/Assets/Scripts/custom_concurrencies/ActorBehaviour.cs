@@ -192,13 +192,20 @@ public class ActorWish : ConcurrentHeader.ExecutionMachine<ActorArgs>.Concurrent
         Vector3 Wish = _args.ViewWishDir;
 
         if (Ground.stable && !LastGround.stable)
+        {
+            VectorHeader.ClipVector(ref Velocity, Ground.normal);
             Actor.SetSnapEnabled(true);
+        }
 
         // Orient Wish Velocity to grounding plane
         if (Ground.snapped && OrientVelocityToGroundPlane)
             VectorHeader.CrossProjection(ref Wish, new Vector3(0, 1, 0), Ground.normal);
-        else // Clip Wish Velocity along upward plane if we're not orienting/stable as we may be able to fight gravity if not done
+        else
+        {
+            // Clip Wish Velocity along upward plane if we're not orienting/stable as we may be able to fight gravity if not done
             VectorHeader.ClipVector(ref Wish, new Vector3(0, 1, 0));
+            Wish.Normalize();
+        }
         float _vm = Velocity.magnitude;
 
         // clamp max speed
@@ -334,6 +341,9 @@ public class ActorJump : ConcurrentHeader.ExecutionMachine<ActorArgs>.Concurrent
             Velocity[1] += Mathf.Sqrt(2 * (_args.Gravity * _args.GravitationalMultiplier) * JumpHeight);
 
             Actor.SetSnapEnabled(false); // disabling snapping until we've found the ground again
+
+
+            Cursor.lockState = CursorLockMode.Locked;
 
             TimeJumpSnapshot = GlobalTime.T;
         }
