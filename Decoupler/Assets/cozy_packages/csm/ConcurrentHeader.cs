@@ -92,8 +92,9 @@ namespace com.cozyhome.ConcurrentExecution
             {
                 protected abstract void OnExecutionDiscovery();
 
+                [Header("Execution State Parameters")]
                 [SerializeField] private string _key = "NIL";
-                [SerializeField] private int _executionoffset = -1;
+                [SerializeField] private int _executionOffset = -1;
                 [System.NonSerialized] private Action<ConcurrentExecution>[] _executioncommands;
                 public void OnBaseDiscovery(Action<ConcurrentExecution>[] ExecutionCommands)
                 {
@@ -103,7 +104,7 @@ namespace com.cozyhome.ConcurrentExecution
 
                 public abstract void Simulate(TMiddleman _args);
                 public string Key => _key;
-                public int Offset => _executionoffset;
+                public int Offset => _executionOffset;
 
                 public void RegisterExecution() => _executioncommands[0](this);
                 public void UnregisterExecution() => _executioncommands[1](this);
