@@ -3,6 +3,7 @@ using UnityEngine;
 using com.cozyhome.Actors;
 using com.cozyhome.ConcurrentExecution;
 using com.cozyhome.Systems;
+using com.cozyhome.Vectors;
 
 // leave values in here to be mostly primitive with exceptions to essentials like the Animator
 // etc..
@@ -27,12 +28,12 @@ public class ActorArgs
 [System.Serializable]
 public class ActorInput : ConcurrentHeader.ExecutionMachine<ActorArgs>.ConcurrentExecution
 {
-    [Header("Action Keycodes")]
+    [Header("Movement Keycodes")]
     [SerializeField] private KeyCode Forward = KeyCode.W;
     [SerializeField] private KeyCode Backward = KeyCode.S;
     [SerializeField] private KeyCode Leftward = KeyCode.A;
     [SerializeField] private KeyCode Rightward = KeyCode.D;
-    [Header("")]
+    [Header("Action")]
     [SerializeField] private KeyCode PrimaryFire = KeyCode.Mouse0;
     [SerializeField] private KeyCode SecondaryFire = KeyCode.Mouse1;
     [SerializeField] private KeyCode Jump = KeyCode.Space;
@@ -101,7 +102,7 @@ public class ActorView : ConcurrentHeader.ExecutionMachine<ActorArgs>.Concurrent
             0,
             _m[1]
         );
-        
+
         return;
     }
 
@@ -148,8 +149,152 @@ public class ActorView : ConcurrentHeader.ExecutionMachine<ActorArgs>.Concurrent
 }
 
 [System.Serializable]
+public class ActorWish : ConcurrentHeader.ExecutionMachine<ActorArgs>.ConcurrentExecution
+
+//      Actor Wish is responsible for determing what direction the actor 
+//      should be moving in PURELY based on their inputs.
+//      Dashing 
+//      Jumping 
+//      Running 
+{
+    [Header("Wish Movement Parameters")]
+    [SerializeField] private bool OrientVelocityToGroundPlane = true;
+    [SerializeField] private float ConstantAcceleration = 10.0F;
+    [SerializeField] private float MaximumMoveSpeed = 10.0F;
+
+    protected override void OnExecutionDiscovery()
+    {
+        RegisterExecution();
+        BeginExecution();
+    }
+
+    public override void Simulate(ActorArgs _args)
+    {
+        ActorHeader.Actor Actor = _args.Actor;
+        ActorHeader.GroundHit Ground = Actor.Ground;
+        Vector3 Velocity = Actor._velocity;
+        Vector3 Wish = _args.ViewWishDir;
+
+        // Orient Wish Velocity to grounding plane
+        if (Ground.snapped && OrientVelocityToGroundPlane)
+            VectorHeader.CrossProjection(ref Wish, new Vector3(0, 1, 0), Ground.normal);
+        else // Clip Wish Velocity along upward plane if we're not orienting/stable as we may be able to fight gravity if not done
+            VectorHeader.ClipVector(ref Wish, new Vector3(0, 1, 0));
+
+        float _vm = Velocity.magnitude;
+
+        DetermineWishVelocity(ref Velocity, Wish, MaximumMoveSpeed, ConstantAcceleration * GlobalTime.FDT);
+
+        // clamp max speed
+
+        Actor.SetVelocity(Velocity);
+
+        return;
+    }
+
+    private void DetermineWishVelocity(ref Vector3 _velocity, Vector3 _wish, float _maxspeed, float _accelspeed)
+    {
+        _velocity += (_wish * _accelspeed);
+
+        float _vm = _velocity.magnitude;
+        if (_vm <= 0F)
+            return;
+
+        float _newspeed = VectorHeader.Dot(_velocity, _wish);
+
+        if (_newspeed > _maxspeed)
+        {   // Trim (circle strafe)
+            _velocity -= (_velocity / _vm) * (_newspeed - _maxspeed);
+        }
+    }
+}
+
+[System.Serializable]
+public class ActorFriction : ConcurrentHeader.ExecutionMachine<ActorArgs>.ConcurrentExecution
+{
+    [Header("Friction Parameters")]
+    [SerializeField] private float GroundFriction = 30.0F;
+    [SerializeField] private float AirFriction = 10.0F;
+    [SerializeField] private float LastGroundSnapshot = 0.0F;
+    [SerializeField] private float GroundFrictionLeeway = 0.1F;
+
+    protected override void OnExecutionDiscovery()
+    {
+        RegisterExecution();
+        BeginExecution();
+    }
+    public override void Simulate(ActorArgs _args)
+    {
+        ActorHeader.Actor Actor = _args.Actor;
+        ActorHeader.GroundHit Ground = Actor.Ground; // Ground is currently last frame as we have not moved until ActorMove() of this simulation
+        ActorHeader.GroundHit LastGround = Actor.LastGround; // LastGround is the frame prior to the last
+        Vector3 _v = Actor._velocity;
+
+        LastGroundSnapshot = (Ground.snapped && !LastGround.snapped) ? GlobalTime.T : LastGroundSnapshot;
+
+        bool _applyfriction = _v.sqrMagnitude > 0F;
+
+        if (!_applyfriction)
+            return;
+
+        float _vm = _v.magnitude;
+
+        // Determine whether to apply ground friction
+        bool _validgroundfriction = (Ground.snapped) && (GlobalTime.T - LastGroundSnapshot) > GroundFrictionLeeway;
+
+        if (_validgroundfriction)
+            ApplyFriction(ref _v, _vm, GroundFriction, GlobalTime.FDT);
+        else
+            ApplyFriction(ref _v, _vm, AirFriction, GlobalTime.FDT);
+
+        Actor.SetVelocity(_v);
+    }
+
+    private void ApplyFriction(ref Vector3 _v, float _speed, float _friction, float FDT)
+    {
+        float _newspeed = _speed - (_friction * FDT);
+        if (_newspeed <= 0)
+            _v = Vector3.zero;
+        else
+            _v *= _newspeed / _speed;
+
+        return;
+    }
+}
+[System.Serializable]
+public class ActorGravity : ConcurrentHeader.ExecutionMachine<ActorArgs>.ConcurrentExecution
+{
+    [System.NonSerialized] private static float GRAVITY = 9.81F;
+    [Header("Gravity Parameters")]
+    [SerializeField] private float GravitationalMultiplier = 4F;
+
+    protected override void OnExecutionDiscovery()
+    {
+        BeginExecution();
+        RegisterExecution();
+    }
+
+    public override void Simulate(ActorArgs _args)
+    {
+        ActorHeader.Actor Actor = _args.Actor;
+        ActorHeader.GroundHit Ground = Actor.Ground;
+        Vector3 Velocity = Actor._velocity;
+
+        bool _validgravity = Actor.Ground.stable;
+
+        Velocity -= new Vector3(0, 1, 0) * (GRAVITY * GravitationalMultiplier * GlobalTime.FDT);
+
+        Actor.SetVelocity(Velocity);
+
+        return;
+    }
+}
+
+[System.Serializable]
 public class ActorMove : ConcurrentHeader.ExecutionMachine<ActorArgs>.ConcurrentExecution,
-                         ActorHeader.IActorReceiver
+            ActorHeader.IActorReceiver
+//      Actor Move is responsible for the actual displacement of the Actor, and should usually be the last function of execution in the 
+//      timeline.
 {
     protected override void OnExecutionDiscovery()
     {
@@ -159,11 +304,24 @@ public class ActorMove : ConcurrentHeader.ExecutionMachine<ActorArgs>.Concurrent
 
     public override void Simulate(ActorArgs _args)
     {
+        ActorHeader.Actor Actor = _args.Actor;
+        UnityEngine.Transform Transform = _args.ActorTransform;
+
+        Actor.SetPosition(Transform.position);
+        Actor.SetOrientation(Transform.rotation);
+
+        ActorHeader.Move(this, Actor, GlobalTime.FDT);
+
+        Transform.SetPositionAndRotation(Actor._position, Actor._orientation);
+
         return;
     }
 
-    public void OnGroundHit(in ActorHeader.GroundHit _ground, in ActorHeader.GroundHit _lastground, LayerMask _gfilter) { }
-    public void OnTraceHit(in RaycastHit _trace, in Vector3 _position, in Vector3 _velocity) { }
+    public void OnGroundHit(in ActorHeader.GroundHit _ground, in ActorHeader.GroundHit _lastground, LayerMask _gfilter)
+    { }
+
+    public void OnTraceHit(in RaycastHit _trace, in Vector3 _position, in Vector3 _velocity)
+    { }
 }
 
 public class ActorBehaviour : ConcurrentHeader.ExecutionMachine<ActorArgs>.MonoExecution
@@ -171,6 +329,9 @@ public class ActorBehaviour : ConcurrentHeader.ExecutionMachine<ActorArgs>.MonoE
     // List your Executions here
     [SerializeField] private ActorInput InputExecution;
     [SerializeField] private ActorView ViewExecution;
+    [SerializeField] private ActorWish WishExecution;
+    [SerializeField] private ActorFriction FrictionExecution;
+    [SerializeField] private ActorGravity GravityExecution;
     [SerializeField] private ActorMove MoveExecution;
 
     public override void OnBehaviourDiscovered(
@@ -179,6 +340,9 @@ public class ActorBehaviour : ConcurrentHeader.ExecutionMachine<ActorArgs>.MonoE
         // Initialize all executions you want here
         InputExecution.OnBaseDiscovery(ExecutionCommands);
         ViewExecution.OnBaseDiscovery(ExecutionCommands);
+        WishExecution.OnBaseDiscovery(ExecutionCommands);
+        FrictionExecution.OnBaseDiscovery(ExecutionCommands);
+        GravityExecution.OnBaseDiscovery(ExecutionCommands);
         MoveExecution.OnBaseDiscovery(ExecutionCommands);
     }
 }
