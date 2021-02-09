@@ -517,7 +517,8 @@ namespace com.cozyhome.Actors
                             _lastplane = _ground.normal;
                             _gflags |= (1 << 0);
 
-                            VectorHeader.CrossProjection(ref _vel, _up, _ground.normal);
+                            VectorHeader.ClipVector(ref _vel, _ground.normal);
+                            //VectorHeader.CrossProjection(ref _vel, _up, _ground.normal);
                         }
 
                         _groundtracelen = 0F;
@@ -710,11 +711,9 @@ namespace com.cozyhome.Actors
                 {
                     if (_stability) // if stable, just orient and maintain magnitude
                     {
-                        // I really should make a helper orientation method, but I'm too fuckin'
-                        // lazy to be bothered :)
-
                         // anyways just orient along the newly discovered stable plane
-                        VectorHeader.CrossProjection(ref _velocity, _up, _groundplane);
+                        //VectorHeader.CrossProjection(ref _velocity, _up, _groundplane);
+                        VectorHeader.ClipVector(ref _velocity, _plane);
                     }
                     else
                     {

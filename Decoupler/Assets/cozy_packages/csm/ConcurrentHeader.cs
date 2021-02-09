@@ -15,7 +15,7 @@ namespace com.cozyhome.ConcurrentExecution
             private Dictionary<string, ConcurrentExecution> _executionindex;
             private SortedList<int, ConcurrentExecution> _simulatingexecutions;
 
-            public void Initialize()
+            public void Initialize(TMiddleman _middleman)
             {
                 _executioncommands = new Action<ConcurrentExecution>[4]
                 {
@@ -57,7 +57,7 @@ namespace com.cozyhome.ConcurrentExecution
                 MonoExecution[] _behavioursfound = gameObject.GetComponents<MonoExecution>();
 
                 for (int i = 0; i < _behavioursfound.Length; i++)
-                    _behavioursfound[i].OnBehaviourDiscovered(_executioncommands);
+                    _behavioursfound[i].OnBehaviourDiscovered(_executioncommands, _middleman);
 
                 _currentattachment = null;
                 _indexattachment = null;
@@ -72,34 +72,40 @@ namespace com.cozyhome.ConcurrentExecution
             }
 
             private void InsertInIndex(ConcurrentExecution _execution)
-                => _executionindex.Add(_execution.Key, _execution);
-
+            => _executionindex.Add(_execution.Key, _execution);
             private void RemoveFromIndex(ConcurrentExecution _execution)
                 => _executionindex.Add(_execution.Key, _execution);
 
             private void RemoveFromSimulation(ConcurrentExecution _execution)
-                => _simulatingexecutions.Remove(_execution.Offset);
+            {
+                if (_simulatingexecutions.ContainsKey(_execution.Offset))
+                    _simulatingexecutions.Remove(_execution.Offset);
+            }
 
             private void InsertInSimulation(ConcurrentExecution _execution)
-                => _simulatingexecutions.Add(_execution.Offset, _execution);
+            {
+                if (!_simulatingexecutions.ContainsKey(_execution.Offset))
+                    _simulatingexecutions.Add(_execution.Offset, _execution);
+            }
 
             public abstract class MonoExecution : MonoBehaviour
             {
-                public abstract void OnBehaviourDiscovered(Action<ConcurrentExecution>[] ExecutionCommands);
+                public abstract void OnBehaviourDiscovered(Action<ConcurrentExecution>[] ExecutionCommands, TMiddleman Middleman);
             }
 
             public abstract class ConcurrentExecution
             {
-                protected abstract void OnExecutionDiscovery();
+                protected abstract void OnExecutionDiscovery(TMiddleman Middleman);
 
                 [Header("Execution State Parameters")]
                 [SerializeField] private string _key = "NIL";
                 [SerializeField] private int _executionOffset = -1;
                 [System.NonSerialized] private Action<ConcurrentExecution>[] _executioncommands;
-                public void OnBaseDiscovery(Action<ConcurrentExecution>[] ExecutionCommands)
+                public void OnBaseDiscovery(Action<ConcurrentExecution>[] ExecutionCommands,
+                                            TMiddleman Middleman)
                 {
                     _executioncommands = ExecutionCommands;
-                    this.OnExecutionDiscovery();
+                    this.OnExecutionDiscovery(Middleman);
                 }
 
                 public abstract void Simulate(TMiddleman _args);

@@ -1,5 +1,6 @@
 using UnityEngine;
 using com.cozyhome.ConcurrentExecution;
+using System;
 
 public class ActorExecutioner : ConcurrentHeader.ExecutionMachine<ActorArgs>
 {
@@ -7,15 +8,11 @@ public class ActorExecutioner : ConcurrentHeader.ExecutionMachine<ActorArgs>
 
     private void Start()
     {
-        this.Initialize();
+        this.Initialize(Middleman);
     }
 
     private void FixedUpdate()
     {
         this.Simulate(Middleman);
     }
-
-    // Custom Funcs
-    public void AssignHoldsObject(ActorHolds ActorHolds)
-        => Middleman.AssignHoldsObject(ActorHolds);
 }

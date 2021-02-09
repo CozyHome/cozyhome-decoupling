@@ -2,16 +2,17 @@ using UnityEngine;
 
 namespace com.cozyhome.ConcurrentExecution
 {
-    public class Middleman
+    [System.Serializable] public class Middleman
     {
         // Put data and funcs in here
     }
 
     public class DebugExecutionMachine : ConcurrentHeader.ExecutionMachine<Middleman>
     {
+        [SerializeField] Middleman middleman;
         void Start()
         {
-            this.Initialize();
+            this.Initialize(middleman);
         }
     }
 }

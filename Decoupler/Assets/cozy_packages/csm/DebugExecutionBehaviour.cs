@@ -10,15 +10,16 @@ namespace com.cozyhome.ConcurrentExecution
         private JumpExecution _Jump = new JumpExecution();
 
         public override void OnBehaviourDiscovered(
-            Action<ConcurrentHeader.ExecutionMachine<Middleman>.ConcurrentExecution>[] ExecutionCommands)
+            Action<ConcurrentHeader.ExecutionMachine<Middleman>.ConcurrentExecution>[] ExecutionCommands,
+            Middleman middleman)
         {
-            _Jump.OnBaseDiscovery(ExecutionCommands);
+            _Jump.OnBaseDiscovery(ExecutionCommands, middleman);
         }
     }
 
     public class JumpExecution : ConcurrentHeader.ExecutionMachine<Middleman>.ConcurrentExecution
     {
-        protected override void OnExecutionDiscovery()
+        protected override void OnExecutionDiscovery(Middleman middleman)
         {
             RegisterExecution();
             BeginExecution();
