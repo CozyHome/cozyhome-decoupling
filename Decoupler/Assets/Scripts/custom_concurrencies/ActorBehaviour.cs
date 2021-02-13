@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 using com.cozyhome.Actors;
+using com.cozyhome.Console;
 using com.cozyhome.ConcurrentExecution;
 using com.cozyhome.Systems;
 using com.cozyhome.Vectors;
@@ -301,7 +302,16 @@ public class ActorFriction : ConcurrentHeader.ExecutionMachine<ActorArgs>.Concur
     {
         RegisterExecution();
         BeginExecution();
+
+        _args.AssignDashCallback((_args, _state) =>
+        {
+            if (_state == ActorDash.DashState.Enter)
+                EndExecution();
+            else
+                BeginExecution();
+        });
     }
+
     public override void Simulate(ActorArgs _args)
     {
         ActorHeader.Actor Actor = _args.Actor;
@@ -397,6 +407,7 @@ public class ActorJump : ConcurrentHeader.ExecutionMachine<ActorArgs>.Concurrent
     {
         RegisterExecution();
         BeginExecution();
+
     }
 
     public override void Simulate(ActorArgs _args)
@@ -448,6 +459,7 @@ public class ActorJump : ConcurrentHeader.ExecutionMachine<ActorArgs>.Concurrent
 
         return false;
     }
+
 }
 
 [System.Serializable]
@@ -529,7 +541,8 @@ public class ActorDash : ConcurrentHeader.ExecutionMachine<ActorArgs>.Concurrent
         Vector3 Wish = _args.ViewWishDir;
 
         bool Grounded = Actor.SnapEnabled && Ground.stable;
-        bool DashRequest = DashStamina >= DashCost &&
+        bool DashRequest = (GlobalTime.T - DashRequestSnapshot) > 0.1F &&
+                         DashStamina >= DashCost &&
                          (_args.ActionFlags & (1 << 3)) != 0;
 
         if (DashRequest) // valid dash
