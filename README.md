@@ -13,3 +13,5 @@ This is going to be the hub for my mini-packages that i'll be using for my games
 5. Vectors Package - (Complete as of 1/30/2021) A bunch of methods to help with simple linear algebra problems found in collision resolution with traces/sliding algos written in the Actor package.
 
 6. Execution Package - (N/A) A bunch of classes/functions to help writing character/actor state for various entities throughout my future projects.
+
+7. Console Package - (N/A) A singleton package designed to allow for user-input based actions/commands as well as a friendly/familiar UI to interface with.
