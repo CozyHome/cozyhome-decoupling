@@ -473,7 +473,7 @@ MonoBehaviour:
     m_HorizontalOverflow: 1
     m_VerticalOverflow: 1
     m_LineSpacing: 1
-  m_Text: '>: input here'
+  m_Text: '>:'
 --- !u!1 &5999453664026016958
 GameObject:
   m_ObjectHideFlags: 0
@@ -1347,17 +1347,17 @@ MonoBehaviour:
   EnableExecution:
     _key: Enable
     _executionOffset: 200
+    Duration: 0.5
   DisableExecution:
     _key: Disable
     _executionOffset: 300
+    Duration: 0.5
   ParseExecution:
     _key: Parse
     _executionOffset: 400
     Console: {fileID: 5999453664884329533}
-    TotalBackspaceElapsed: 0
-    IntervalBackspaceElapsed: 0
-    BackspacedLastFrame: 0
-    _multiplier: 1
+    TotalBackspaceThreshold: 0.1
+    IntervalBackspaceThreshold: 0.035
 --- !u!1 &5999453664917075918
 GameObject:
   m_ObjectHideFlags: 0
@@ -1675,8 +1675,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   m_Material: {fileID: 0}
-  m_Color: {r: 0.0012014981, g: 0.06358403, b: 0.254717, a: 0.21960784}
-  m_RaycastTarget: 1
+  m_Color: {r: 0.047169805, g: 0.012682447, b: 0.017084043, a: 0.92156863}
+  m_RaycastTarget: 0
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
   m_OnCullStateChanged:

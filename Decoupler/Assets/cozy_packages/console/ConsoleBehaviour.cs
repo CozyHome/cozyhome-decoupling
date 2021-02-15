@@ -5,15 +5,12 @@ using UnityEngine;
 
 namespace com.cozyhome.Console
 {
-
-
     [System.Serializable]
     public class ConsoleArgs
     {
         public Action<bool, ConsoleArgs> OnConsoleChanged;
         public Vector2[] DrawerPositions;
         public RectTransform Drawer;
-
         public int InputFlags = 0;
         public string InputString = "NIL";
     }
@@ -23,6 +20,7 @@ namespace com.cozyhome.Console
     {
         [SerializeField] KeyCode Toggle = KeyCode.BackQuote;
         [SerializeField] KeyCode Backspace = KeyCode.Backspace;
+        [SerializeField] KeyCode Submit = KeyCode.Return;
 
         protected override void OnExecutionDiscovery(ConsoleArgs Middleman)
         {
@@ -35,6 +33,7 @@ namespace com.cozyhome.Console
 
             _flags |= Input.GetKey(Toggle) ? 0x0001 : 0x0000;
             _flags |= Input.GetKey(Backspace) ? 0x0002 : 0x0000;
+            _flags |= Input.GetKey(Submit) ? 0x0004 : 0x0000;
 
             _args.InputFlags = _flags;
             _args.InputString = Input.inputString;
@@ -69,7 +68,8 @@ namespace com.cozyhome.Console
     [System.Serializable]
     public class ConsoleEnable : ConcurrentHeader.ExecutionMachine<ConsoleArgs>.ConcurrentExecution
     {
-
+        [Header("Enable Settings")]
+        [SerializeField] private float Duration = 0.5F;
         [System.NonSerialized] float InterpTime = 0F;
         protected override void OnExecutionDiscovery(ConsoleArgs _args)
         {
@@ -80,18 +80,16 @@ namespace com.cozyhome.Console
         public override void Simulate(ConsoleArgs _args)
         {
             InterpTime += GlobalTime.DT;
-            InterpTime = Mathf.Min(InterpTime, 1F);
+            InterpTime = Mathf.Min(InterpTime, Duration);
 
             _args.Drawer.anchoredPosition = new Vector2(
                 0F,
                 _args.DrawerPositions[0][1] +
-                InterpTime * (_args.DrawerPositions[1][1] - _args.DrawerPositions[0][1])
+                (InterpTime / Duration) * (_args.DrawerPositions[1][1] - _args.DrawerPositions[0][1])
             );
 
-            if (InterpTime >= 1)
-            {
+            if (InterpTime >= Duration)
                 EndExecution();
-            }
         }
 
         public void OnConsoleToggled(bool B, ConsoleArgs _args)
@@ -115,6 +113,8 @@ namespace com.cozyhome.Console
     [System.Serializable]
     public class ConsoleDisable : ConcurrentHeader.ExecutionMachine<ConsoleArgs>.ConcurrentExecution
     {
+        [Header("Disable Settings")]
+        [SerializeField] private float Duration = 0.5F;
         [System.NonSerialized] float InterpTime = 0F;
         protected override void OnExecutionDiscovery(ConsoleArgs _args)
         {
@@ -123,18 +123,16 @@ namespace com.cozyhome.Console
         public override void Simulate(ConsoleArgs _args)
         {
             InterpTime += GlobalTime.DT;
-            InterpTime = Mathf.Min(InterpTime, 1F);
+            InterpTime = Mathf.Min(InterpTime, Duration);
 
             _args.Drawer.anchoredPosition = new Vector2(
                 0F,
                 _args.DrawerPositions[1][1] +
-                InterpTime * (_args.DrawerPositions[0][1] - _args.DrawerPositions[1][1])
+                (InterpTime / Duration) * (_args.DrawerPositions[0][1] - _args.DrawerPositions[1][1])
             );
 
-            if (InterpTime >= 1)
-            {
+            if (InterpTime >= Duration)
                 EndExecution();
-            }
         }
 
         public void OnConsoleToggled(bool B, ConsoleArgs _args)
@@ -167,6 +165,8 @@ namespace com.cozyhome.Console
         [System.NonSerialized] private float TotalBackspaceElapsed;
         [System.NonSerialized] private float IntervalBackspaceElapsed;
         [System.NonSerialized] private bool BackspacedLastFrame = false;
+
+        [System.NonSerialized] private bool SubmittedLastFrame = false;
 
         protected override void OnExecutionDiscovery(ConsoleArgs _args)
         {
@@ -204,8 +204,15 @@ namespace com.cozyhome.Console
                 Console.RemoveCharacterFromString(1);
             }
 
+
+            bool _enter = (_args.InputFlags & 0x0004) != 0;
+            if (_enter && !SubmittedLastFrame)
+                Console.SubmitLineForParsing();
+
             BackspacedLastFrame = _backspace;
+            SubmittedLastFrame = _enter;
         }
+
         public void OnConsoleToggled(bool B, ConsoleArgs _args)
         {
             if (B)

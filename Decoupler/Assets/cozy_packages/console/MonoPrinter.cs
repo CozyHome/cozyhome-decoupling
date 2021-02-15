@@ -1,6 +1,5 @@
 using System;
 using UnityEngine;
-using UnityEngine.UI;
 
 namespace com.cozyhome.Console
 {
@@ -38,10 +37,20 @@ namespace com.cozyhome.Console
         {
             string str = Lines[Lines.Length - 1].text;
             int ni = str.Length - (amt + 1);
-            if (ni <= 2)
+            if (ni <= 1)
                 return;
             else
                 Lines[Lines.Length - 1].text = str.Substring(0, ni);
+        }
+
+        public string GetInputLine()
+        {
+            return Lines[Lines.Length - 1].text.Substring(2);
+        }
+
+        public void ClearInputLine()
+        {
+            Lines[Lines.Length - 1].text = ">:";
         }
     }
 }

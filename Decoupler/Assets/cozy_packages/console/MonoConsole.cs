@@ -1,9 +1,7 @@
 using UnityEngine;
-using System;
-using System.Collections;
-using com.cozyhome.Systems;
 using com.cozyhome.Singleton;
 using System.Collections.Generic;
+using System;
 
 namespace com.cozyhome.Console
 {
@@ -20,6 +18,15 @@ namespace com.cozyhome.Console
         {
             Printer.CacheLines();
             Printer.Write("Console initialized at frame: " + Time.frameCount);
+
+            Commands.Add("printmodifiers", new ConsoleHeader.Command(
+                (string[] modifiers, out string output) =>
+                {
+                    output = "";
+
+                    foreach (String s in modifiers)
+                        output += (" " + s);
+                }));
         }
 
         private void AttemptInvokation(string rawinput)
@@ -44,7 +51,11 @@ namespace com.cozyhome.Console
 
                     WriteToScreen(output);
                 }
+                else
+                    WriteToScreen("Error: '" + keys[0] + "' is not a recognized command.");
             }
+            else
+                WriteToScreen("Error: The input string provided could not be parsed.");
         }
 
         private void InsertCMD(string key, ConsoleHeader.Command command)
@@ -57,10 +68,10 @@ namespace com.cozyhome.Console
             => Printer.Write(output);
 
         public static void InsertCommand(string key, ConsoleHeader.Command command)
-            => _instance.InsertCMD(key, command);
+            => _instance?.InsertCMD(key, command);
 
         public static void RemoveCommand(string key)
-            => _instance.RemoveCMD(key);
+            => _instance?.RemoveCMD(key);
 
         public void AppendCommandString(string inputString)
         =>
@@ -69,5 +80,12 @@ namespace com.cozyhome.Console
         public void RemoveCharacterFromString(int amt)
         =>
             Printer.RemoveCharactersFromString(amt);
+
+        public void SubmitLineForParsing()
+        {
+            string raw = Printer.GetInputLine();
+            Printer.ClearInputLine();
+            AttemptInvokation(raw);
+        }
     }
 }
