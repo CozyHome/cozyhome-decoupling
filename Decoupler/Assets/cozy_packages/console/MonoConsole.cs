@@ -19,14 +19,7 @@ namespace com.cozyhome.Console
             Printer.CacheLines();
             Printer.Write("Console initialized at frame: " + Time.frameCount);
 
-            Commands.Add("printmodifiers", new ConsoleHeader.Command(
-                (string[] modifiers, out string output) =>
-                {
-                    output = "";
-
-                    foreach (String s in modifiers)
-                        output += (" " + s);
-                }));
+            ConsoleHeader.SetDefaults(ref Commands);
         }
 
         private void AttemptInvokation(string rawinput)

@@ -9,10 +9,11 @@ namespace com.cozyhome.Console
     public class ConsoleArgs
     {
         public Action<bool, ConsoleArgs> OnConsoleChanged;
-        public Vector2[] DrawerPositions;
         public RectTransform Drawer;
         public int InputFlags = 0;
         public string InputString = "NIL";
+
+        [System.NonSerialized] public Vector2[] DrawerPositions = new Vector2[2];
     }
 
     [System.Serializable]
@@ -74,8 +75,9 @@ namespace com.cozyhome.Console
         protected override void OnExecutionDiscovery(ConsoleArgs _args)
         {
             RegisterExecution();
-
             _args.OnConsoleChanged += OnConsoleToggled;
+
+            _args.DrawerPositions[1] = new Vector2(0F, 0F);
         }
         public override void Simulate(ConsoleArgs _args)
         {
@@ -118,7 +120,11 @@ namespace com.cozyhome.Console
         [System.NonSerialized] float InterpTime = 0F;
         protected override void OnExecutionDiscovery(ConsoleArgs _args)
         {
+            RegisterExecution();
+
             _args.OnConsoleChanged += OnConsoleToggled;
+
+            _args.DrawerPositions[0][1] = _args.Drawer.sizeDelta[1];
         }
         public override void Simulate(ConsoleArgs _args)
         {

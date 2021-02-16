@@ -9,7 +9,7 @@ namespace com.cozyhome.Systems
     SystemsHeader.IUpdateSystem
     {
         [SerializeField] private short _executionindex = 1;
-        
+
         public void OnDiscover()
         {
             for (int i = 0; i < 3; i++)
@@ -29,7 +29,7 @@ namespace com.cozyhome.Systems
         public void OnLateUpdate()
         =>
             GlobalTime.Apply(2, Time.deltaTime, Time.time);
-        
+
     }
 }
 

@@ -603,7 +603,6 @@ public class ActorTilt : ConcurrentHeader.ExecutionMachine<ActorArgs>.Concurrent
     [SerializeField] private float MaximumZTilt = -2F;
 
     [Header("Hands Parameters")]
-    [SerializeField] private Vector3 VelocitySwayMagnitudes = new Vector3(0.05F, 0.05F, 0.05F);
     [SerializeField] private float HandsOffset = 0F;
     [SerializeField] private float SwaySpeed = 3.0F;
     [SerializeField] private float SwayDistance = 0.25F;
@@ -645,7 +644,6 @@ public class ActorTilt : ConcurrentHeader.ExecutionMachine<ActorArgs>.Concurrent
         LocalPosition[2] = LocalPosition[2] + (_moveoffset - LocalPosition[2]) * (GlobalTime.FDT * 20F);
 
         HandsTransform.localPosition = LocalPosition;
-        HandsTransform.position += Vector3.Scale(Actor._velocity, VelocitySwayMagnitudes);
         CameraTransform.localRotation = Quaternion.Euler(LocalEulers);
     }
 }

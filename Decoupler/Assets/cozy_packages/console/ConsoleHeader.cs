@@ -5,7 +5,7 @@ namespace com.cozyhome.Console
 {
     public static class ConsoleHeader
     {
-        enum ParseState { Quote = 0, Standard = 1 }
+        const int NULLQUEUE = 8192;
 
         public delegate void Command(string[] modifiers, out string output);
 
@@ -21,19 +21,13 @@ namespace com.cozyhome.Console
             // alongside that, maybe make a command that allows for GC.Collect to be ran
             // if it hasn't been manullay been ran for some time ? 
 
-            //rawinput = rawinput.TrimStart();
-            //rawinput = rawinput.TrimEnd();
-            //String[] tmpbuffer = rawinput.Split(delims, MAXKEYS);
-
-            // so here's a pretty inefficient implementation for identifying chars
-
             // stack of quote identifiers to know if to ignore splitting
             Queue<int> quotequeue = new Queue<int>(); // quote stack
             Queue<int> charqueue = new Queue<int>();
             char[] txt = rawinput.ToCharArray();
             int wc = 0; // word count
 
-            String[] tmpbuffer = new String[MAXKEYS];
+            string[] tmpbuffer = new string[MAXKEYS];
             tmpbuffer[0] = "";
 
             // first pass: determine quote attributes
@@ -86,8 +80,8 @@ namespace com.cozyhome.Console
 
             for (; wc < MAXKEYS; wc++)
             {
-                int cindex = 1000;
-                int qindex = 1000;
+                int cindex = NULLQUEUE;
+                int qindex = NULLQUEUE;
 
                 if (charqueue.Count > 0)
                     cindex = charqueue.Peek();
@@ -97,18 +91,27 @@ namespace com.cozyhome.Console
 
                 int delta = qindex - cindex;
 
-                if (delta > 0) // if quotequeue is ahead in index count, queue goes first.
+                if (qindex - cindex > 0) // if quotequeue is ahead in index count, char queue goes first.
                 {
-                    if (charqueue.Count > 1)
+                    if (charqueue.Count > 1 &&
+                        cindex != NULLQUEUE)
                     {
+                        // pop the endpoint indicies from the queue and read them
+                        // into the substring function to determine the desired
+                        // string
                         int c0 = charqueue.Dequeue();
                         int c1 = charqueue.Dequeue();
+
+                        // assign it to the word at index wc.
                         tmpbuffer[wc] = rawinput.Substring(c0, c1 - c0);
                     }
                 }
                 else
                 {
-                    if (quotequeue.Count > 1)
+                    // doing the same thing as before but instead we're also including
+                    // the quotes in the output
+                    if (quotequeue.Count > 1 &&
+                        qindex != NULLQUEUE)
                     {
                         int c0 = quotequeue.Dequeue();
                         int c1 = quotequeue.Dequeue();
@@ -118,6 +121,18 @@ namespace com.cozyhome.Console
             }
 
             return tmpbuffer;
+        }
+
+        public static void SetDefaults(ref Dictionary<string, Command> commands)
+        {
+            commands.Add("print", Print);
+        }
+
+        public static void Print(string[] parameters, out string output)
+        {
+            output = "";
+            for (int i = 0; i < parameters.Length; i++)
+                output += (" " + parameters[i]);
         }
     }
 }
