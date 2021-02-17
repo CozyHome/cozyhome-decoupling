@@ -1,5 +1,6 @@
 using System;
 using System.Text;
+using System.Globalization;
 using System.Collections.Generic;
 namespace com.cozyhome.Console
 {
@@ -83,7 +84,7 @@ namespace com.cozyhome.Console
                 int cindex = NULLQUEUE;
                 int qindex = NULLQUEUE;
 
-                if(charqueue.Count <= 1 && quotequeue.Count <= 1)
+                if (charqueue.Count <= 1 && quotequeue.Count <= 1)
                     break;
 
                 if (charqueue.Count > 0)
@@ -124,6 +125,11 @@ namespace com.cozyhome.Console
             }
 
             return tmpbuffer;
+        }
+
+        public static bool TryParseSingle(string input, out float parsed)
+        {
+            return float.TryParse(input, out parsed);
         }
 
         public static void SetDefaults(ref Dictionary<string, Command> commands)

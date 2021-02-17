@@ -403,7 +403,7 @@ namespace com.cozyhome.Actors
 
             _ground.Clear();
 
-            float _groundtracelen = (_lastground.stable && _lastground.snapped) ? 0.05F : 0.025F;
+            float _groundtracelen = (_lastground.stable && _lastground.snapped) ? 0.1F : 0.05F;
 
             while (_groundbumpcount++ < MAX_GROUNDBUMPS &&
                 _groundtracelen > 0F)
@@ -417,7 +417,7 @@ namespace com.cozyhome.Actors
                 // continue
                 // else : 
                 // break out of loop as no floor was detected
-                _arc.Trace(_groundtracepos,
+                _arc.Trace(_groundtracepos + (_up * 0.01F),
                     _groundtracedir,
                     _groundtracelen,
                     _orient,

@@ -47,8 +47,16 @@ public class ActorArgs
     public void RemoveDashCallback(Action<ActorArgs, ActorDash.DashState> OnDashEvent)
         => this.ActorDash.RemoveDashCallback(OnDashEvent);
 
+    public void SetCommands()
+    {
+        MonoConsole.InsertCommand("cl_noclip", Noclip);
+        MonoConsole.InsertCommand("cl_fly", Fly);
+        MonoConsole.InsertCommand("cl_setgravity", SetGravityMultiplier);
+    }
+
     private bool _isNoclip = false;
-    public void Noclip(string[] modifiers, out string output)
+    private bool _isFly = false;
+    private void Noclip(string[] modifiers, out string output)
     {
         switch (modifiers[0])
         {
@@ -75,6 +83,8 @@ public class ActorArgs
             Actor.SetMoveType(ActorHeader.MoveType.Noclip);
 
             output = "Noclip: ON";
+
+            _isFly = false;
         }
         else
         {
@@ -91,13 +101,63 @@ public class ActorArgs
         }
     }
 
+    public void Fly(string[] modifiers, out string output)
+    {
+        switch (modifiers[0])
+        {
+            case "0\r":
+                _isFly = false;
+                break;
+            case "1\r":
+                _isFly = true;
+                break;
+            default:
+                _isFly = !_isFly;
+                break;
+        }
+
+        if (_isFly)
+        {
+            Behaviour.FrictionExecution.EndExecution();
+            Behaviour.GravityExecution.EndExecution();
+            Behaviour.DashExecution.EndExecution();
+            Behaviour.SlideExecution.EndExecution();
+
+            Behaviour.FlyExecution.BeginExecution();
+
+            Actor.SetMoveType(ActorHeader.MoveType.Fly);
+
+            output = "Fly: ON";
+
+            _isNoclip = false;
+        }
+        else
+        {
+            Behaviour.FrictionExecution.BeginExecution();
+            Behaviour.GravityExecution.BeginExecution();
+            Behaviour.DashExecution.BeginExecution();
+            Behaviour.SlideExecution.BeginExecution();
+
+            Behaviour.FlyExecution.EndExecution();
+
+            Actor.SetMoveType(ActorHeader.MoveType.Slide);
+
+            output = "Fly: OFF";
+        }
+    }
+
+    private void SetGravityMultiplier(string[] modifiers, out string output)
+    {
+        output = "";
+        if (ConsoleHeader.TryParseSingle(modifiers[0], out float value))
+        {
+            output = "gravitational multiplier set to: " + value;
+            GravitationalMultiplier = value;
+        }
+    }
+
     public void AssignBehaviour(ActorBehaviour _behaviour)
     => this.Behaviour = _behaviour;
-
-    public void SetCommands()
-    {
-        MonoConsole.InsertCommand("noclip", Noclip);
-    }
 }
 [System.Serializable]
 public class ActorHolds : ConcurrentHeader.ExecutionMachine<ActorArgs>.ConcurrentExecution
@@ -350,7 +410,6 @@ public class ActorFly : ConcurrentHeader.ExecutionMachine<ActorArgs>.ConcurrentE
         RegisterExecution();
     }
 }
-
 
 [System.Serializable]
 public class ActorFriction : ConcurrentHeader.ExecutionMachine<ActorArgs>.ConcurrentExecution
@@ -637,9 +696,11 @@ public class ActorTilt : ConcurrentHeader.ExecutionMachine<ActorArgs>.Concurrent
     [Header("Tilt Parameters")]
     [SerializeField] private Transform CameraTransform;
     [SerializeField] private Transform HandsTransform;
+    [SerializeField] private Camera ViewmodelCamera;
+    [SerializeField] private Camera VisCamera;
     [SerializeField] private Vector3 LocalEulers;
     [SerializeField] private Vector3 LocalPosition;
-    [SerializeField] private float MaximumZTilt = -2F;
+    [SerializeField] private float MaximumZTilt = 2F;
 
     [Header("Hands Parameters")]
     [SerializeField] private float HandsOffset = 0F;
@@ -655,7 +716,16 @@ public class ActorTilt : ConcurrentHeader.ExecutionMachine<ActorArgs>.Concurrent
         BeginExecution();
 
         LocalEulers = CameraTransform.eulerAngles;
+
+        MonoConsole.InsertCommand("vm_fov", SetViewmodelFOV);
+        MonoConsole.InsertCommand("vm_x", SetViewmodelOffsetX);
+        MonoConsole.InsertCommand("vm_y", SetViewmodelOffsetY);
+        MonoConsole.InsertCommand("vm_z", SetViewmodelOffsetZ);
+        MonoConsole.InsertCommand("vm_ta", SetViewmodelTiltAngle);
+
+        MonoConsole.InsertCommand("vis_fov", SetVisFOV);
     }
+
     public override void Simulate(ActorArgs _args)
     {
         ActorHeader.Actor Actor = _args.Actor;
@@ -667,7 +737,7 @@ public class ActorTilt : ConcurrentHeader.ExecutionMachine<ActorArgs>.Concurrent
         float _moveoffset = HandsOffset;
 
         if (Grounded)
-            _visanglez = MaximumZTilt * RawWish[0];
+            _visanglez = -MaximumZTilt * RawWish[0];
         else
             _visanglez = 0;
 
@@ -684,6 +754,98 @@ public class ActorTilt : ConcurrentHeader.ExecutionMachine<ActorArgs>.Concurrent
 
         HandsTransform.localPosition = LocalPosition;
         CameraTransform.localRotation = Quaternion.Euler(LocalEulers);
+    }
+
+    private void SetViewmodelFOV(string[] modifiers, out string output)
+    {
+        output = "";
+        if (ConsoleHeader.TryParseSingle(modifiers[0], out float value))
+        {
+            value = Mathf.Clamp(value, 5F, 120F);
+            ViewmodelCamera.fieldOfView = value;
+
+            switch (value)
+            {
+                case 120F:
+                    output = "viewmodel fov set to : Quake Pro (120)";
+                    break;
+                default:
+                    output = "viewmodel fov set to : (" + value + ")";
+                    break;
+            }
+        }
+    }
+
+    private void SetViewmodelOffsetX(string[] modifiers, out string output)
+    {
+        output = "";
+        if (ConsoleHeader.TryParseSingle(modifiers[0], out float value))
+        {
+            value = Mathf.Clamp(value, -2F, 2F);
+
+            LocalPosition[0] = value;
+
+            output = "viewmodel x offset set to : (" + value + ")";
+        }
+    }
+
+    private void SetViewmodelOffsetY(string[] modifiers, out string output)
+    {
+        output = "";
+        if (ConsoleHeader.TryParseSingle(modifiers[0], out float value))
+        {
+            value = Mathf.Clamp(value, -2F, 2F);
+
+            LocalPosition[1] = value;
+
+            output = "viewmodel y offset set to : (" + value + ")";
+        }
+    }
+
+    private void SetViewmodelOffsetZ(string[] modifiers, out string output)
+    {
+        output = "";
+        if (ConsoleHeader.TryParseSingle(modifiers[0], out float value))
+        {
+            value = Mathf.Clamp(value, -2F, 2F);
+
+            HandsOffset = value;
+
+            output = "viewmodel z offset set to : (" + value + ")";
+        }
+    }
+
+    private void SetViewmodelTiltAngle(string[] modifiers, out string output)
+    {
+        output = "";
+        if (ConsoleHeader.TryParseSingle(modifiers[0], out float value))
+        {
+            value = Mathf.Clamp(value, 0F, 20F);
+
+            MaximumZTilt = value;
+
+            output = "viewmodel z offset set to : (" + value + ")";
+        }
+    }
+
+    private void SetVisFOV(string[] modifiers, out string output)
+    {
+        output = "";
+        if (ConsoleHeader.TryParseSingle(modifiers[0], out float value))
+        {
+            value = Mathf.Clamp(value, 5F, 120F);
+            VisCamera.fieldOfView = value;
+
+            switch (value)
+            {
+                case 120F:
+                    output = "vis fov set to : Quake Pro (120)";
+                    break;
+                default:
+                    output = "vis fov set to : (" + value + ")";
+                    break;
+            }
+        }
     }
 }
 
