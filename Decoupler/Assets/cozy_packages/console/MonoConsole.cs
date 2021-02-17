@@ -24,7 +24,7 @@ namespace com.cozyhome.Console
 
         private void AttemptInvokation(string rawinput)
         {
-            string[] keys = ConsoleHeader.Parse(rawinput);
+            string[] keys = ConsoleHeader.Parse(rawinput, out int wc);
 
             // if action is described:
             if (keys.Length > 0)
@@ -32,8 +32,8 @@ namespace com.cozyhome.Console
                 // if action exists:
                 if (Commands.TryGetValue(keys[0], out ConsoleHeader.Command cmd))
                 {
-                    int size = keys.Length - 1;
-                    size = Mathf.Max(size, 0);
+                    int size = wc - 1;
+                    size = Mathf.Max(size, 1);
                     string[] modifiers = new string[size];
 
                     // deep copy strings bc C# forces me to

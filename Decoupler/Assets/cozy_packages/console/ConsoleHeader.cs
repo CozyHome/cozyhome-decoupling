@@ -10,7 +10,7 @@ namespace com.cozyhome.Console
         public delegate void Command(string[] modifiers, out string output);
 
         // this is probably the most scuffed algorithm I have ever written.
-        public static string[] Parse(string rawinput)
+        public static string[] Parse(string rawinput, out int wc)
         {
             // find action and subsequent modifiers
             const int MAXKEYS = 10;
@@ -25,7 +25,7 @@ namespace com.cozyhome.Console
             Queue<int> quotequeue = new Queue<int>(); // quote stack
             Queue<int> charqueue = new Queue<int>();
             char[] txt = rawinput.ToCharArray();
-            int wc = 0; // word count
+            wc = 0; // word count
 
             string[] tmpbuffer = new string[MAXKEYS];
             tmpbuffer[0] = "";
@@ -82,6 +82,9 @@ namespace com.cozyhome.Console
             {
                 int cindex = NULLQUEUE;
                 int qindex = NULLQUEUE;
+
+                if(charqueue.Count <= 1 && quotequeue.Count <= 1)
+                    break;
 
                 if (charqueue.Count > 0)
                     cindex = charqueue.Peek();

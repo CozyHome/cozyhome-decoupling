@@ -31,7 +31,10 @@ public class ActorArgs
     public float Gravity = 9.81F;
     public float GravitationalMultiplier = 4F;
 
-    // Executional Communications Center
+    // Private References
+    private ActorBehaviour Behaviour;
+
+    // Executional (External) Communications Center
 
     public void AssignHoldsObject(ActorHolds ActorHolds)
         => this.ActorHolds = ActorHolds;
@@ -43,6 +46,58 @@ public class ActorArgs
         => this.ActorDash.AssignDashCallback(OnDashEvent);
     public void RemoveDashCallback(Action<ActorArgs, ActorDash.DashState> OnDashEvent)
         => this.ActorDash.RemoveDashCallback(OnDashEvent);
+
+    private bool _isNoclip = false;
+    public void Noclip(string[] modifiers, out string output)
+    {
+        switch (modifiers[0])
+        {
+            case "0\r":
+                _isNoclip = false;
+                break;
+            case "1\r":
+                _isNoclip = true;
+                break;
+            default:
+                _isNoclip = !_isNoclip;
+                break;
+        }
+
+        if (_isNoclip)
+        {
+            Behaviour.FrictionExecution.EndExecution();
+            Behaviour.GravityExecution.EndExecution();
+            Behaviour.DashExecution.EndExecution();
+            Behaviour.SlideExecution.EndExecution();
+
+            Behaviour.FlyExecution.BeginExecution();
+
+            Actor.SetMoveType(ActorHeader.MoveType.Noclip);
+
+            output = "Noclip: ON";
+        }
+        else
+        {
+            Behaviour.FrictionExecution.BeginExecution();
+            Behaviour.GravityExecution.BeginExecution();
+            Behaviour.DashExecution.BeginExecution();
+            Behaviour.SlideExecution.BeginExecution();
+
+            Behaviour.FlyExecution.EndExecution();
+
+            Actor.SetMoveType(ActorHeader.MoveType.Slide);
+
+            output = "Noclip: OFF";
+        }
+    }
+
+    public void AssignBehaviour(ActorBehaviour _behaviour)
+    => this.Behaviour = _behaviour;
+
+    public void SetCommands()
+    {
+        MonoConsole.InsertCommand("noclip", Noclip);
+    }
 }
 [System.Serializable]
 public class ActorHolds : ConcurrentHeader.ExecutionMachine<ActorArgs>.ConcurrentExecution
@@ -196,7 +251,7 @@ public class ActorView : ConcurrentHeader.ExecutionMachine<ActorArgs>.Concurrent
 }
 
 [System.Serializable]
-public class ActorWish : ConcurrentHeader.ExecutionMachine<ActorArgs>.ConcurrentExecution
+public class ActorSlide : ConcurrentHeader.ExecutionMachine<ActorArgs>.ConcurrentExecution
 
 //      Actor Wish is responsible for determining what direction the actor 
 //      should be moving in PURELY based on their inputs.
@@ -263,31 +318,39 @@ public class ActorWish : ConcurrentHeader.ExecutionMachine<ActorArgs>.Concurrent
         }
 
         if (Grounded) // Subtract max speed based on stability 
-            DetermineWishVelocity(ref Velocity, Wish, MaximumGroundMoveSpeed, GroundAcceleration * GlobalTime.FDT);
+            BehaviourHeader.DetermineWishVelocity(ref Velocity, Wish, MaximumGroundMoveSpeed, GroundAcceleration * GlobalTime.FDT);
         else
-            DetermineWishVelocity(ref Velocity, Wish, MaximumAirMoveSpeed, AirAcceleration * GlobalTime.FDT);
+            BehaviourHeader.DetermineWishVelocity(ref Velocity, Wish, MaximumAirMoveSpeed, AirAcceleration * GlobalTime.FDT);
 
         Actor.SetVelocity(Velocity);
 
         return;
     }
+}
 
-    private void DetermineWishVelocity(ref Vector3 _velocity, Vector3 _wish, float _maxspeed, float _accelspeed)
+[System.Serializable]
+public class ActorFly : ConcurrentHeader.ExecutionMachine<ActorArgs>.ConcurrentExecution
+{
+    [Header("Fly Settings")]
+    [SerializeField] private float FlyAirFriction = 100F;
+    [SerializeField] private float MaximumFlySpeed = 25F;
+    [SerializeField] private float FlyAcceleration = 800F;
+    public override void Simulate(ActorArgs _args)
     {
-        _velocity += (_wish * _accelspeed);
+        ActorHeader.Actor Actor = _args.Actor;
+        Vector3 Velocity = Actor._velocity;
+        Vector3 Wish = _args.ViewWishDir;
 
-        float _vm = _velocity.magnitude;
-        if (_vm <= 0F)
-            return;
-
-        float _newspeed = VectorHeader.Dot(_velocity, _wish);
-
-        if (_newspeed > _maxspeed)
-        {   // Trim (circle strafe)
-            _velocity -= (_wish) * (_newspeed - _maxspeed);
-        }
+        BehaviourHeader.DetermineWishVelocity(ref Velocity, Wish, MaximumFlySpeed, FlyAcceleration * GlobalTime.FDT);
+        BehaviourHeader.ApplyFriction(ref Velocity, Velocity.magnitude, FlyAirFriction, GlobalTime.FDT);
+        Actor.SetVelocity(Velocity);
+    }
+    protected override void OnExecutionDiscovery(ActorArgs Middleman)
+    {
+        RegisterExecution();
     }
 }
+
 
 [System.Serializable]
 public class ActorFriction : ConcurrentHeader.ExecutionMachine<ActorArgs>.ConcurrentExecution
@@ -331,35 +394,11 @@ public class ActorFriction : ConcurrentHeader.ExecutionMachine<ActorArgs>.Concur
         bool _applygroundfriction = (Actor.SnapEnabled && Ground.stable) && (GlobalTime.T - LastGroundSnapshot) > GroundFrictionLeeway;
 
         if (_applygroundfriction)
-            ApplyFriction(ref _v, _vm, GroundFriction, GlobalTime.FDT);
+            BehaviourHeader.ApplyFriction(ref _v, _vm, GroundFriction, GlobalTime.FDT);
         else
-            ApplyFriction(ref _v, _vm, AirFriction, GlobalTime.FDT);
+            BehaviourHeader.ApplyFriction(ref _v, _vm, AirFriction, GlobalTime.FDT);
 
         Actor.SetVelocity(_v);
-    }
-
-    private void ApplyFriction(ref Vector3 _v, float _speed, float _friction, float FDT)
-    {
-        float _newspeed = _speed - (_friction * FDT);
-        if (_newspeed <= 0)
-            _v = Vector3.zero;
-        else
-            _v *= _newspeed / _speed;
-
-        return;
-    }
-
-    private void ApplyAirFriction(ref Vector3 _v, float _speed, float _friction, float FDT)
-    {
-        //float _newspeed = _speed - (_friction * FDT);
-        //if (_newspeed <= 0)
-        //    _v = Vector3.zero;
-        //else
-        //    _v *= _newspeed / _speed;
-
-        _v -= VectorHeader.ClipVector(_v / _speed, new Vector3(0, 1, 0)) * (_friction * FDT);
-
-        return;
     }
 }
 [System.Serializable]
@@ -647,28 +686,33 @@ public class ActorTilt : ConcurrentHeader.ExecutionMachine<ActorArgs>.Concurrent
         CameraTransform.localRotation = Quaternion.Euler(LocalEulers);
     }
 }
+
 public class ActorBehaviour : ConcurrentHeader.ExecutionMachine<ActorArgs>.MonoExecution
 {
     // List your Executions here
-    [SerializeField] private ActorHolds HoldsExecution;
-    [SerializeField] private ActorInput InputExecution;
-    [SerializeField] private ActorView ViewExecution;
-    [SerializeField] private ActorWish WishExecution;
-    [SerializeField] private ActorFriction FrictionExecution;
-    [SerializeField] private ActorGravity GravityExecution;
-    [SerializeField] private ActorDash DashExecution;
-    [SerializeField] private ActorJump JumpExecution;
-    [SerializeField] private ActorMove MoveExecution;
-    [SerializeField] private ActorTilt TiltExecution;
+    [SerializeField] public ActorHolds HoldsExecution;
+    [SerializeField] public ActorInput InputExecution;
+    [SerializeField] public ActorView ViewExecution;
+    [SerializeField] public ActorSlide SlideExecution;
+    [SerializeField] public ActorFly FlyExecution;
+    [SerializeField] public ActorFriction FrictionExecution;
+    [SerializeField] public ActorGravity GravityExecution;
+    [SerializeField] public ActorDash DashExecution;
+    [SerializeField] public ActorJump JumpExecution;
+    [SerializeField] public ActorMove MoveExecution;
+    [SerializeField] public ActorTilt TiltExecution;
 
     public override void OnBehaviourDiscovered(
         Action<ConcurrentHeader.ExecutionMachine<ActorArgs>.ConcurrentExecution>[] ExecutionCommands,
         ActorArgs _args)
     {
-
         // Assignment Stage
         _args.AssignHoldsObject(HoldsExecution);
         _args.AssignDashObject(DashExecution);
+        _args.AssignBehaviour(this);
+
+        // Command Stage
+        _args.SetCommands();
 
         // Initialize all executions you want here
         HoldsExecution.OnBaseDiscovery(ExecutionCommands, _args);
@@ -677,7 +721,9 @@ public class ActorBehaviour : ConcurrentHeader.ExecutionMachine<ActorArgs>.MonoE
 
         ViewExecution.OnBaseDiscovery(ExecutionCommands, _args);
 
-        WishExecution.OnBaseDiscovery(ExecutionCommands, _args);
+        SlideExecution.OnBaseDiscovery(ExecutionCommands, _args);
+
+        FlyExecution.OnBaseDiscovery(ExecutionCommands, _args);
 
         FrictionExecution.OnBaseDiscovery(ExecutionCommands, _args);
 
@@ -690,5 +736,35 @@ public class ActorBehaviour : ConcurrentHeader.ExecutionMachine<ActorArgs>.MonoE
         MoveExecution.OnBaseDiscovery(ExecutionCommands, _args);
 
         TiltExecution.OnBaseDiscovery(ExecutionCommands, _args);
+    }
+}
+
+public static class BehaviourHeader
+{
+    public static void DetermineWishVelocity(ref Vector3 _velocity, Vector3 _wish, float _maxspeed, float _accelspeed)
+    {
+        _velocity += (_wish * _accelspeed);
+
+        float _vm = _velocity.magnitude;
+        if (_vm <= 0F)
+            return;
+
+        float _newspeed = VectorHeader.Dot(_velocity, _wish);
+
+        if (_newspeed > _maxspeed)
+        {   // Trim (circle strafe)
+            _velocity -= (_wish) * (_newspeed - _maxspeed);
+        }
+    }
+
+    public static void ApplyFriction(ref Vector3 _v, float _speed, float _friction, float FDT)
+    {
+        float _newspeed = _speed - (_friction * FDT);
+        if (_newspeed <= 0)
+            _v = Vector3.zero;
+        else
+            _v *= _newspeed / _speed;
+
+        return;
     }
 }

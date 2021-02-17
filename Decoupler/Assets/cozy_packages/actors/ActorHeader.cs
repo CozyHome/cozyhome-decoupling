@@ -100,7 +100,7 @@ namespace com.cozyhome.Actors
             // as simple as displacing a primitive.
             public static void Fly(IActorReceiver _rec, Actor _actor, float fdt) => PM_FlyMove(_rec, _actor, ref _actor._position, ref _actor._velocity, _actor._orientation, _actor._filter, fdt);
             public static void Slide(IActorReceiver _rec, Actor _actor, float fdt) => PM_SlideMove(_rec, _actor, ref _actor._position, ref _actor._velocity, _actor._orientation, _actor._filter, fdt);
-            public static void Noclip(IActorReceiver _rec, Actor _actor, float fdt) => PM_NoclipMove(_rec, ref _actor._position, ref _actor._velocity, fdt);
+            public static void Noclip(IActorReceiver _rec, Actor _actor, float fdt) => PM_NoclipMove(_rec, _actor, ref _actor._position, ref _actor._velocity, fdt);
 
             public void SetVelocity(Vector3 _velocity) => this._velocity = _velocity;
             public void SetPosition(Vector3 _position) => this._position = _position;
@@ -748,6 +748,7 @@ namespace com.cozyhome.Actors
         // to change MoveFunc states.
         public static void PM_NoclipMove(
             IActorReceiver _rec,
+            Actor _actor,
             ref Vector3 _pos,
             ref Vector3 _vel,
             float _fdt)
@@ -757,6 +758,9 @@ namespace com.cozyhome.Actors
                 RUN:
                 DISPLACE
             */
+
+            _actor.Ground.Clear();
+            _actor.LastGround.Clear();
 
             _pos += (_vel * _fdt);
 

@@ -1805,14 +1805,20 @@ MonoBehaviour:
     _executionOffset: 100
     ViewSensitivity: 480
     MaxVerticalViewingAngle: 89.9
-  WishExecution:
-    _key: Wish
+  SlideExecution:
+    _key: Slide
     _executionOffset: 200
     OrientVelocityToGroundPlane: 1
     GroundAcceleration: 800
     AirAcceleration: 50
-    MaximumGroundMoveSpeed: 35
-    MaximumAirMoveSpeed: 25
+    MaximumGroundMoveSpeed: 30
+    MaximumAirMoveSpeed: 30
+  FlyExecution:
+    _key: Fly
+    _executionOffset: 201
+    FlyAirFriction: 250
+    MaximumFlySpeed: 50
+    FlyAcceleration: 1000
   FrictionExecution:
     _key: Friction
     _executionOffset: 300
@@ -1847,8 +1853,7 @@ MonoBehaviour:
     HandsTransform: {fileID: 6875242537418531755}
     LocalEulers: {x: 0, y: 0, z: 0}
     LocalPosition: {x: 0, y: -0.78, z: 0}
-    MaximumZTilt: -3
-    VelocitySwayMagnitudes: {x: 0.005, y: 0.005, z: 0.005}
+    MaximumZTilt: -2
     HandsOffset: 0.5
     SwaySpeed: 2.5
     SwayDistance: 0.2
