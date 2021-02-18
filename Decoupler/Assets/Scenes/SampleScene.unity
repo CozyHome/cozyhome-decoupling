@@ -122,7 +122,7 @@ NavMeshSettings:
     preserveTilesOutsideBounds: 0
     debug:
       m_Flags: 0
-  m_NavMeshData: {fileID: 0}
+  m_NavMeshData: {fileID: 23800000, guid: 6e78bbe70bc5eec4994f0ac1f5f979da, type: 2}
 --- !u!1 &391441265
 GameObject:
   m_ObjectHideFlags: 0
@@ -388,6 +388,36 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   ExecutionIndex: 3
   FrameCountModulo: 30
+--- !u!1 &1596005478
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1596005480}
+  m_Layer: 0
+  m_Name: Pools
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1596005480
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1596005478}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_RootOrder: 6
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1745000394
 GameObject:
   m_ObjectHideFlags: 0
@@ -417,7 +447,7 @@ Transform:
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_Children: []
   m_Father: {fileID: 0}
-  m_RootOrder: 6
+  m_RootOrder: 7
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &1745000396
 MonoBehaviour:
@@ -448,7 +478,7 @@ GameObject:
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
+  m_StaticEditorFlags: 8
   m_IsActive: 1
 --- !u!64 &1832850407
 MeshCollider:
@@ -521,7 +551,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1832850406}
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: -90.25}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 250, y: 1, z: 250}
   m_Children: []
   m_Father: {fileID: 0}
@@ -550,6 +580,18 @@ PrefabInstance:
       propertyPath: TiltExecution.VisCamera
       value: 
       objectReference: {fileID: 6875242536671379341}
+    - target: {fileID: 5981390181174188844, guid: f4c853a0b0ccc35438904af5504a5b35, type: 3}
+      propertyPath: FrictionExecution.AirFriction
+      value: 10
+      objectReference: {fileID: 0}
+    - target: {fileID: 5981390181174188844, guid: f4c853a0b0ccc35438904af5504a5b35, type: 3}
+      propertyPath: SlideExecution.AirAcceleration
+      value: 5
+      objectReference: {fileID: 0}
+    - target: {fileID: 5981390181174188844, guid: f4c853a0b0ccc35438904af5504a5b35, type: 3}
+      propertyPath: SlideExecution.MaximumAirMoveSpeed
+      value: 15
+      objectReference: {fileID: 0}
     - target: {fileID: 5981390181174188845, guid: f4c853a0b0ccc35438904af5504a5b35, type: 3}
       propertyPath: m_RootOrder
       value: 4
@@ -560,7 +602,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 5981390181174188845, guid: f4c853a0b0ccc35438904af5504a5b35, type: 3}
       propertyPath: m_LocalPosition.y
-      value: 1.5
+      value: 2.67
       objectReference: {fileID: 0}
     - target: {fileID: 5981390181174188845, guid: f4c853a0b0ccc35438904af5504a5b35, type: 3}
       propertyPath: m_LocalPosition.z

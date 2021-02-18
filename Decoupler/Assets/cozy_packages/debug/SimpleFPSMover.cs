@@ -2,7 +2,7 @@ using UnityEngine;
 using com.cozyhome.Actors;
 using com.cozyhome.Systems;
 
-namespace com.cozyhome.Debug
+namespace com.cozyhome.Debugging
 {
     public class SimpleFPSMover : MonoBehaviour, ActorHeader.IActorReceiver
     {
@@ -84,8 +84,8 @@ namespace com.cozyhome.Debug
                 new Vector3(0, 1, 0)
             );
 
-            _lookdelta[0] *= (360F * GlobalTime.FDT);
-            _lookdelta[1] *= (360F * GlobalTime.FDT);
+            _lookdelta[0] *= (_LookSensitivity * GlobalTime.FDT);
+            _lookdelta[1] *= (_LookSensitivity * GlobalTime.FDT);
 
             Vector3 fwd = R * new Vector3(0, 0, 1);
 

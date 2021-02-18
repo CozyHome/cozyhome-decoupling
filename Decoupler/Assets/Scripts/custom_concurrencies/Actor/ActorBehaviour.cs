@@ -377,10 +377,15 @@ public class ActorSlide : ConcurrentHeader.ExecutionMachine<ActorArgs>.Concurren
             Wish.Normalize();
         }
 
-        if (Grounded) // Subtract max speed based on stability 
-            BehaviourHeader.DetermineWishVelocity(ref Velocity, Wish, MaximumGroundMoveSpeed, GroundAcceleration * GlobalTime.FDT);
+        //if (Grounded) // Subtract max speed based on stability 
+        //    BehaviourHeader.DetermineWishVelocity(ref Velocity, Wish, MaximumGroundMoveSpeed, GroundAcceleration * GlobalTime.FDT);
+        //else
+        //    BehaviourHeader.DetermineWishVelocity(ref Velocity, Wish, MaximumAirMoveSpeed, AirAcceleration * GlobalTime.FDT);
+
+        if (Grounded)
+            BehaviourHeader.ApplyAcceleration(ref Velocity, Wish, MaximumGroundMoveSpeed, GroundAcceleration);
         else
-            BehaviourHeader.DetermineWishVelocity(ref Velocity, Wish, MaximumAirMoveSpeed, AirAcceleration * GlobalTime.FDT);
+            BehaviourHeader.ApplyAcceleration(ref Velocity, Wish, MaximumAirMoveSpeed, AirAcceleration);
 
         Actor.SetVelocity(Velocity);
 
@@ -401,7 +406,8 @@ public class ActorFly : ConcurrentHeader.ExecutionMachine<ActorArgs>.ConcurrentE
         Vector3 Velocity = Actor._velocity;
         Vector3 Wish = _args.ViewWishDir;
 
-        BehaviourHeader.DetermineWishVelocity(ref Velocity, Wish, MaximumFlySpeed, FlyAcceleration * GlobalTime.FDT);
+        //BehaviourHeader.DetermineWishVelocity(ref Velocity, Wish, MaximumFlySpeed, FlyAcceleration * GlobalTime.FDT);
+        BehaviourHeader.ApplyAcceleration(ref Velocity, Wish, MaximumFlySpeed, FlyAcceleration);
         BehaviourHeader.ApplyFriction(ref Velocity, Velocity.magnitude, FlyAirFriction, GlobalTime.FDT);
         Actor.SetVelocity(Velocity);
     }
@@ -917,6 +923,27 @@ public static class BehaviourHeader
         {   // Trim (circle strafe)
             _velocity -= (_wish) * (_newspeed - _maxspeed);
         }
+    }
+
+
+    // Straight from Q1.
+    // https://github.com/id-Software/Quake/blob/master/QW/client/pmove.c
+    // Lines 412-434
+    public static void ApplyAcceleration(ref Vector3 _velocity, Vector3 _wish, float _maxspeed, float _accel)
+    {
+        float _addspeed, _accelspeed, _currentspeed;
+
+        _currentspeed = VectorHeader.Dot(_velocity, _wish);
+        _addspeed = _maxspeed - _currentspeed;
+        if (_addspeed <= 0) // we're traveling further than we need to
+            return;
+        _accelspeed = (_maxspeed * _accel * GlobalTime.FDT);
+
+        // if acceleration delta is greater than our maximum, cap it.
+        if (_accelspeed > _addspeed)
+            _accelspeed = _addspeed;
+
+        _velocity += _wish * _accelspeed;
     }
 
     public static void ApplyFriction(ref Vector3 _v, float _speed, float _friction, float FDT)
