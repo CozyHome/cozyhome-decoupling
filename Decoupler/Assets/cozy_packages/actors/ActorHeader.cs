@@ -464,7 +464,7 @@ namespace com.cozyhome.Actors
                         if (_cansnap)
                             _ground.snapped = true;
 
-                        _rec.OnGroundHit(in _ground, in _lastground, _filter);
+                        _rec.OnGroundHit(_ground, _lastground, _filter);
 
                         // gonna keep the typo bc pog
                         // shoot up check for snap availability
@@ -498,7 +498,7 @@ namespace com.cozyhome.Actors
                             if (VectorHeader.Dot(_vel, _f) <= 0F)
                             {
                                 if (VectorHeader.Dot(_vel, _snap.normal) < 0F)
-                                    _rec.OnTraceHit(in _snap, _groundtracepos, _vel);
+                                    _rec.OnTraceHit(_snap, _groundtracepos, _vel);
 
                                 _gflags |= (1 << 1);
                                 VectorHeader.ProjectVector(ref _vel, _c);
@@ -624,7 +624,7 @@ namespace com.cozyhome.Actors
                         float _dis = _closest.distance - _skin;
                         _tracepos += (_trace / _tracelen) * _dis; // move back along the trace line!
 
-                        _rec.OnTraceHit(in _closest, in _tracepos, in _vel);
+                        _rec.OnTraceHit(_closest, _tracepos, _vel);
 
                         PM_SlideDetermineImmediateGeometry(ref _vel,
                                 ref _lastplane,
@@ -776,8 +776,8 @@ namespace com.cozyhome.Actors
         //     For an example of how I go about this, check the SimpleFPSMover.cs script found in the debug package provided in this repo. 
         public interface IActorReceiver
         {
-            void OnGroundHit(in GroundHit _ground, in GroundHit _lastground, LayerMask _gfilter);
-            void OnTraceHit(in RaycastHit _trace, in Vector3 _position, in Vector3 _velocity);
+            void OnGroundHit(GroundHit _ground, GroundHit _lastground, LayerMask _gfilter);
+            void OnTraceHit(RaycastHit _trace, Vector3 _position, Vector3 _velocity);
         }
 
         public const int MAX_GROUNDBUMPS = 2; // # of ground snaps/iterations in a SlideMove() 

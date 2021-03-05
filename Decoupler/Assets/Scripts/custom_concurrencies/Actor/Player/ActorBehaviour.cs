@@ -593,12 +593,12 @@ public class ActorMove : ConcurrentHeader.ExecutionMachine<ActorArgs>.Concurrent
         return;
     }
 
-    public void OnGroundHit(in ActorHeader.GroundHit _ground, in ActorHeader.GroundHit _lastground, LayerMask _gfilter)
+    public void OnGroundHit(ActorHeader.GroundHit _ground, ActorHeader.GroundHit _lastground, LayerMask _gfilter)
     {
 
     }
 
-    public void OnTraceHit(in RaycastHit _trace, in Vector3 _position, in Vector3 _velocity)
+    public void OnTraceHit(RaycastHit _trace, Vector3 _position, Vector3 _velocity)
     {
 
     }
@@ -909,6 +909,7 @@ public class ActorBehaviour : ConcurrentHeader.ExecutionMachine<ActorArgs>.MonoE
 
 public static class BehaviourHeader
 {
+    // old acceleration code, not as desireable atm
     public static void DetermineWishVelocity(ref Vector3 _velocity, Vector3 _wish, float _maxspeed, float _accelspeed)
     {
         _velocity += (_wish * _accelspeed);

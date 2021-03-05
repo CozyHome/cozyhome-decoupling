@@ -120,12 +120,12 @@ namespace com.cozyhome.Debugging
             return Vector3.zero;
         }
 
-        public void OnGroundHit(in ActorHeader.GroundHit _ground,
-            in ActorHeader.GroundHit _lastground,
+        public void OnGroundHit(ActorHeader.GroundHit _ground,
+            ActorHeader.GroundHit _lastground,
             LayerMask _gfilter)
         { }
 
-        public void OnTraceHit(in RaycastHit _trace, in Vector3 _position, in Vector3 _velocity)
+        public void OnTraceHit(RaycastHit _trace, Vector3 _position, Vector3 _velocity)
         {
             bool _stbl = _Actor.DeterminePlaneStability(_trace.normal, _trace.collider);
 
